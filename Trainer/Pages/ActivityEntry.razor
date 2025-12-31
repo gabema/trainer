@@ -1,0 +1,114 @@
+@page "/activity"
+@page "/activity/{Id:int}"
+@inject IActivityService ActivityService
+@inject IActivityTypeService ActivityTypeService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<PageTitle>@(IsEditMode ? "Edit Activity" : "Add Activity")</PageTitle>
+
+<div class="container mt-4">
+    <h2>@(IsEditMode ? "Edit Activity" : "Add Activity")</h2>
+
+    <EditForm Model="@activity" OnValidSubmit="HandleSubmit">
+        <DataAnnotationsValidator />
+        
+        <div class="mb-3">
+            <label class="form-label">Activity</label>
+            <div class="input-group">
+                <InputSelect @bind-Value="activity.ActivityTypeId" class="form-select">
+                    <option value="0">Select an activity type...</option>
+                    @foreach (var type in activityTypes)
+                    {
+                        <option value="@type.Id">@type.Name</option>
+                    }
+                </InputSelect>
+                <button type="button" class="btn btn-outline-secondary" @onclick="AddNewActivityType">
+                    <span>+</span>
+                </button>
+            </div>
+            <ValidationMessage For="@(() => activity.ActivityTypeId)" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">When</label>
+            <InputDate @bind-Value="activity.When" class="form-control" />
+            <input type="time" class="form-control mt-2" 
+                   value="@activity.When.ToString("HH:mm")" 
+                   @onchange="@((ChangeEventArgs e) => UpdateTime(e.Value?.ToString() ?? ""))" />
+            <ValidationMessage For="@(() => activity.When)" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Amount</label>
+            <InputNumber @bind-Value="activity.Amount" class="form-control" min="0" step="1" />
+            <ValidationMessage For="@(() => activity.Amount)" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Notes</label>
+            <InputTextArea @bind-Value="activity.Notes" class="form-control" rows="4" />
+        </div>
+
+        <div class="mb-3">
+            <button type="submit" class="btn btn-primary">@(IsEditMode ? "Update" : "Add")</button>
+            <button type="button" class="btn btn-secondary ms-2" @onclick="Cancel">Cancel</button>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private Activity activity = new() { When = DateTime.Now };
+    private List<ActivityType> activityTypes = new();
+    private bool IsEditMode => Id > 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        activityTypes = await ActivityTypeService.GetAllAsync();
+        
+        if (IsEditMode)
+        {
+            var existingActivity = await ActivityService.GetByIdAsync(Id);
+            if (existingActivity != null)
+            {
+                activity = existingActivity;
+            }
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (IsEditMode)
+        {
+            await ActivityService.UpdateAsync(activity);
+        }
+        else
+        {
+            await ActivityService.AddAsync(activity);
+        }
+        
+        Navigation.NavigateTo("/");
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/");
+    }
+
+    private void AddNewActivityType()
+    {
+        Navigation.NavigateTo("/activity-type");
+    }
+
+    private void UpdateTime(string timeString)
+    {
+        if (TimeSpan.TryParse(timeString, out var time))
+        {
+            activity.When = activity.When.Date + time;
+        }
+    }
+}
+
