@@ -34,7 +34,9 @@
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/service-worker.js')
+                const baseHref = document.querySelector('base')?.getAttribute('href') || '/';
+                const swPath = baseHref + (baseHref.endsWith('/') ? '' : '/') + 'service-worker.js';
+                navigator.serviceWorker.register(swPath)
                     .then(reg => console.log('Service Worker registered'))
                     .catch(err => console.log('Service Worker registration failed:', err));
             });

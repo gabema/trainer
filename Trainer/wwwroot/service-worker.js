@@ -1,13 +1,15 @@
 // Service Worker for Trainer PWA
+// Detect base path from service worker location
+const basePath = self.location.pathname.replace(/\/[^/]*$/, '') || '/';
 const CACHE_NAME = 'trainer-v1';
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/css/bootstrap/bootstrap.min.css',
-  '/css/app.css',
-  '/_framework/blazor.webassembly.js',
-  '/_framework/wasm/dotnet.wasm',
-  '/manifest.json'
+  basePath + (basePath.endsWith('/') ? '' : '/'),
+  basePath + (basePath.endsWith('/') ? '' : '/') + 'index.html',
+  basePath + (basePath.endsWith('/') ? '' : '/') + 'css/bootstrap/bootstrap.min.css',
+  basePath + (basePath.endsWith('/') ? '' : '/') + 'css/app.css',
+  basePath + (basePath.endsWith('/') ? '' : '/') + '_framework/blazor.webassembly.js',
+  basePath + (basePath.endsWith('/') ? '' : '/') + '_framework/wasm/dotnet.wasm',
+  basePath + (basePath.endsWith('/') ? '' : '/') + 'manifest.json'
 ];
 
 // Install event - cache resources
@@ -45,7 +47,8 @@ self.addEventListener('fetch', event => {
       .catch(() => {
         // If both fail, return offline page if available
         if (event.request.destination === 'document') {
-          return caches.match('/index.html');
+          const basePath = self.location.pathname.replace(/\/[^/]*$/, '') || '/';
+          return caches.match(basePath + (basePath.endsWith('/') ? '' : '/') + 'index.html');
         }
       })
   );
