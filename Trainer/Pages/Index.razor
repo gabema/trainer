@@ -77,7 +77,7 @@
 @code {
     private List<Activity> activities = new();
     private List<ActivityType> activityTypes = new();
-    private object? chartInstance;
+    private string? chartInstance;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -115,7 +115,7 @@
             await JSRuntime.InvokeVoidAsync("chartHelper.destroyChart", chartInstance);
         }
 
-        chartInstance = await JSRuntime.InvokeAsync<object>("chartHelper.createChart", "activityChart", "bar", labels, data, colors);
+        chartInstance = await JSRuntime.InvokeAsync<string>("chartHelper.createChart", "activityChart", "bar", labels, data, colors);
     }
 
     private string GetActivityTypeName(int activityTypeId)
