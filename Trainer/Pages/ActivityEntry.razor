@@ -7,9 +7,11 @@
 
 <PageTitle>@(IsEditMode ? "Edit Activity" : "Add Activity")</PageTitle>
 
-<div class="container mt-4">
-    <h2>@(IsEditMode ? "Edit Activity" : "Add Activity")</h2>
+<div class="header-area">
+    <h1 class="mb-0">@(IsEditMode ? "Edit Activity" : "Add Activity")</h1>
+</div>
 
+<div class="container mt-4">
     <EditForm Model="@activity" OnValidSubmit="HandleSubmit">
         <DataAnnotationsValidator />
         
@@ -32,10 +34,16 @@
 
         <div class="mb-3">
             <label class="form-label">When</label>
-            <InputDate @bind-Value="activity.When" class="form-control" />
-            <input type="time" class="form-control mt-2" 
-                   value="@activity.When.ToString("HH:mm")" 
-                   @onchange="@((ChangeEventArgs e) => UpdateTime(e.Value?.ToString() ?? ""))" />
+            <div class="row g-2">
+                <div class="col-md-6">
+                    <InputDate @bind-Value="activity.When" class="form-control" />
+                </div>
+                <div class="col-md-6">
+                    <input type="time" class="form-control" 
+                           value="@activity.When.ToString("HH:mm")" 
+                           @onchange="@((ChangeEventArgs e) => UpdateTime(e.Value?.ToString() ?? ""))" />
+                </div>
+            </div>
             <ValidationMessage For="@(() => activity.When)" />
         </div>
 
