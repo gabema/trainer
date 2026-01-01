@@ -54,6 +54,6 @@ Clicking the Add or Update button saves changes and returns to the main screen.
 
 The Net Benefit buttons are toggleable can either the green positive or red negative option can be selected (or neither can be selected).
 
-The Daily amount and Monthly Amounts allow for whole numbers.
+The Daily amount and Weekly Amounts allow for whole numbers.
 
 Clicking the Add or Update button saves changes and returns to the activity screen.

@@ -6,6 +6,6 @@ public class ActivityType
     public string Name { get; set; } = string.Empty;
     public NetBenefit NetBenefit { get; set; } = NetBenefit.None;
     public int? DailyAmount { get; set; }
-    public int? MonthlyAmount { get; set; }
+    public int? WeeklyAmount { get; set; }
 }
 
