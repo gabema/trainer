@@ -46,6 +46,11 @@
         </div>
 
         <div class="mb-3">
+            <label class="form-label">Unit of Measurement</label>
+            <InputText @bind-Value="activityType.Unit" class="form-control" placeholder="e.g., cups, reps, ounces" />
+        </div>
+
+        <div class="mb-3">
             <button type="submit" class="btn btn-primary">@(IsEditMode ? "Update" : "Add")</button>
             <button type="button" class="btn btn-secondary ms-2" @onclick="Cancel">Cancel</button>
         </div>
@@ -70,7 +75,8 @@
             var queryParams = queryString.Split('&')
                 .Select(p => p.Split('='))
                 .Where(p => p.Length == 2)
-                .ToDictionary(p => Uri.UnescapeDataString(p[0]), p => Uri.UnescapeDataString(p[1]));
+                .GroupBy(p => Uri.UnescapeDataString(p[0]), p => Uri.UnescapeDataString(p[1]))
+                .ToDictionary(g => g.Key, g => g.First());
             
             if (queryParams.TryGetValue("returnUrl", out var url))
             {

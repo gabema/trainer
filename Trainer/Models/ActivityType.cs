@@ -7,5 +7,6 @@ public class ActivityType
     public NetBenefit NetBenefit { get; set; } = NetBenefit.None;
     public int? DailyAmount { get; set; }
     public int? WeeklyAmount { get; set; }
+    public string? Unit { get; set; }
 }
 

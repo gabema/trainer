@@ -68,7 +68,7 @@
                                     <tr style="cursor: pointer;" @onclick="() => EditActivity(activity.Id)">
                                         <td>@GetActivityTypeName(activity.ActivityTypeId)</td>
                                         <td>@activity.When.ToString("g")</td>
-                                        <td>@activity.Amount</td>
+                                        <td>@GetAmountDisplay(activity)</td>
                                         <td>@(activity.Notes.Length > 50 ? activity.Notes.Substring(0, 50) + "..." : activity.Notes)</td>
                                     </tr>
                                 }
@@ -134,6 +134,16 @@
     private string GetActivityTypeName(int activityTypeId)
     {
         return activityTypes.FirstOrDefault(t => t.Id == activityTypeId)?.Name ?? "Unknown";
+    }
+
+    private string GetAmountDisplay(Activity activity)
+    {
+        var activityType = activityTypes.FirstOrDefault(t => t.Id == activity.ActivityTypeId);
+        if (activityType?.Unit != null)
+        {
+            return $"{activity.Amount} {activityType.Unit}";
+        }
+        return activity.Amount.ToString();
     }
 
     private string GetActivityTypeColor(int activityTypeId)
