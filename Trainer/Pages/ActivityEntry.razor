@@ -79,6 +79,13 @@
         }
     }
 
+    private string GetNavigationPath(string path)
+    {
+        var baseUri = Navigation.BaseUri.TrimEnd('/');
+        var normalizedPath = path.TrimStart('/');
+        return $"{baseUri}/{normalizedPath}";
+    }
+
     private async Task HandleSubmit()
     {
         if (IsEditMode)
@@ -90,17 +97,17 @@
             await ActivityService.AddAsync(activity);
         }
         
-        Navigation.NavigateTo("/");
+        Navigation.NavigateTo(GetNavigationPath("/"));
     }
 
     private void Cancel()
     {
-        Navigation.NavigateTo("/");
+        Navigation.NavigateTo(GetNavigationPath("/"));
     }
 
     private void AddNewActivityType()
     {
-        Navigation.NavigateTo("/activity-type");
+        Navigation.NavigateTo(GetNavigationPath("/activity-type"));
     }
 
     private void UpdateTime(string timeString)

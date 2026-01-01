@@ -78,6 +78,13 @@
         activityType.NetBenefit = benefit;
     }
 
+    private string GetNavigationPath(string path)
+    {
+        var baseUri = Navigation.BaseUri.TrimEnd('/');
+        var normalizedPath = path.TrimStart('/');
+        return $"{baseUri}/{normalizedPath}";
+    }
+
     private async Task HandleSubmit()
     {
         if (IsEditMode)
@@ -89,12 +96,12 @@
             await ActivityTypeService.AddAsync(activityType);
         }
         
-        Navigation.NavigateTo("/activity");
+        Navigation.NavigateTo(GetNavigationPath("/activity"));
     }
 
     private void Cancel()
     {
-        Navigation.NavigateTo("/activity");
+        Navigation.NavigateTo(GetNavigationPath("/activity"));
     }
 }
 
