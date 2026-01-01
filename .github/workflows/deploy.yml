@@ -34,9 +34,13 @@ jobs:
     - name: Publish
       run: dotnet publish Trainer/Trainer.csproj --configuration Release --output ./publish --no-build -p:BasePath=/trainer/
     
+    - name: Create 404.html from index.html for GitHub Pages
+      run: cp ./publish/wwwroot/index.html ./publish/wwwroot/404.html
+    
     - name: Update base href for GitHub Pages
       run: |
         sed -i 's|<base href="/" />|<base href="/trainer/" />|g' ./publish/wwwroot/index.html
+        sed -i 's|<base href="/" />|<base href="/trainer/" />|g' ./publish/wwwroot/404.html
     
     - name: Setup Pages
       uses: actions/configure-pages@v4
