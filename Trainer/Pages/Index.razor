@@ -83,9 +83,6 @@
     {
         if (firstRender)
         {
-            // #region agent log
-            await JSRuntime.InvokeVoidAsync("debugLog", new { location = "Index.razor:86", message = "Component first render - checking NavigationManager state", data = new { baseUri = Navigation.BaseUri, uri = Navigation.Uri }, timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), sessionId = "debug-session", runId = "run1", hypothesisId = "A" });
-            // #endregion
             await LoadData();
             await UpdateChart();
         }
@@ -145,19 +142,9 @@
         return fullPath;
     }
 
-    private async Task AddNewActivity()
+    private void AddNewActivity()
     {
-        // #region agent log
-        var baseUri = Navigation.BaseUri;
-        var currentUri = Navigation.Uri;
-        var targetPath = "/activity";
-        await JSRuntime.InvokeVoidAsync("debugLog", new { location = "Index.razor:140", message = "AddNewActivity called - BEFORE NavigateTo", data = new { baseUri, currentUri, targetPath }, timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), sessionId = "debug-session", runId = "run1", hypothesisId = "A,B,C" });
-        // #endregion
         Navigation.NavigateTo(GetNavigationPath("/activity"));
-        // #region agent log
-        await Task.Delay(50);
-        await JSRuntime.InvokeVoidAsync("debugLog", new { location = "Index.razor:145", message = "AddNewActivity called - AFTER NavigateTo", data = new { baseUri = Navigation.BaseUri, currentUri = Navigation.Uri, windowLocation = "check browser" }, timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), sessionId = "debug-session", runId = "run1", hypothesisId = "D" });
-        // #endregion
     }
 
     private void EditActivity(int id)

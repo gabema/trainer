@@ -32,16 +32,6 @@
     <script src="js/chart-helper.js"></script>
     <script src="_framework/blazor.webassembly.js"></script>
     <script>
-        // #region agent log
-        window.debugLog = function(data) {
-            console.log('[DEBUG]', data);
-            fetch('http://127.0.0.1:7242/ingest/6fb7d9d3-de00-4a0c-862d-2c22552903af', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            }).catch(() => {});
-        };
-        // #endregion
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 const baseHref = document.querySelector('base')?.getAttribute('href') || '/';
