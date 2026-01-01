@@ -68,12 +68,3 @@ window.triggerFileInput = function (elementId) {
     }
 };
 
-// Debug logging helper
-window.debugLog = function (data) {
-    fetch('http://127.0.0.1:7242/ingest/6fb7d9d3-de00-4a0c-862d-2c22552903af', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...data, timestamp: Date.now(), sessionId: 'debug-session' })
-    }).catch(() => {});
-};
-

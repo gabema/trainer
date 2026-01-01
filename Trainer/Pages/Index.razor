@@ -81,106 +81,41 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        // #region agent log
-        await JSRuntime.InvokeVoidAsync("debugLog", new { location = "Index.razor:82", message = "OnAfterRenderAsync entry", data = new { firstRender = firstRender }, runId = "run1", hypothesisId = "D" });
-        // #endregion
         if (firstRender)
         {
-            // #region agent log
-            await JSRuntime.InvokeVoidAsync("debugLog", new { location = "Index.razor:85", message = "First render - before LoadData", data = new { }, runId = "run1", hypothesisId = "D" });
-            // #endregion
             await LoadData();
-            // #region agent log
-            await JSRuntime.InvokeVoidAsync("debugLog", new { location = "Index.razor:87", message = "After LoadData - before UpdateChart", data = new { activitiesCount = activities?.Count ?? 0, activityTypesCount = activityTypes?.Count ?? 0 }, runId = "run1", hypothesisId = "D,B" });
-            // #endregion
             await UpdateChart();
-            // #region agent log
-            await JSRuntime.InvokeVoidAsync("debugLog", new { location = "Index.razor:88", message = "After UpdateChart", data = new { chartInstanceCreated = chartInstance != null }, runId = "run1", hypothesisId = "B" });
-            // #endregion
         }
     }
 
     private async Task LoadData()
     {
-        // #region agent log
-        await JSRuntime.InvokeVoidAsync("debugLog", new { location = "Index.razor:91", message = "LoadData entry", data = new { }, runId = "run1", hypothesisId = "D" });
-        // #endregion
-        try
-        {
-            // #region agent log
-            await JSRuntime.InvokeVoidAsync("debugLog", new { location = "Index.razor:94", message = "Before ActivityService.GetAllAsync", data = new { }, runId = "run1", hypothesisId = "D" });
-            // #endregion
-            activities = await ActivityService.GetAllAsync();
-            // #region agent log
-            await JSRuntime.InvokeVoidAsync("debugLog", new { location = "Index.razor:95", message = "After ActivityService.GetAllAsync", data = new { activitiesCount = activities?.Count ?? 0 }, runId = "run1", hypothesisId = "D" });
-            // #endregion
-            // #region agent log
-            await JSRuntime.InvokeVoidAsync("debugLog", new { location = "Index.razor:97", message = "Before ActivityTypeService.GetAllAsync", data = new { }, runId = "run1", hypothesisId = "D" });
-            // #endregion
-            activityTypes = await ActivityTypeService.GetAllAsync();
-            // #region agent log
-            await JSRuntime.InvokeVoidAsync("debugLog", new { location = "Index.razor:98", message = "After ActivityTypeService.GetAllAsync", data = new { activityTypesCount = activityTypes?.Count ?? 0 }, runId = "run1", hypothesisId = "D" });
-            // #endregion
-            StateHasChanged();
-        }
-        catch (Exception ex)
-        {
-            // #region agent log
-            await JSRuntime.InvokeVoidAsync("debugLog", new { location = "Index.razor:102", message = "LoadData exception", data = new { exceptionType = ex.GetType().Name, exceptionMessage = ex.Message }, runId = "run1", hypothesisId = "D" });
-            // #endregion
-            throw;
-        }
+        activities = await ActivityService.GetAllAsync();
+        activityTypes = await ActivityTypeService.GetAllAsync();
+        StateHasChanged();
     }
 
     private async Task UpdateChart()
     {
-        // #region agent log
-        await JSRuntime.InvokeVoidAsync("debugLog", new { location = "Index.razor:98", message = "UpdateChart entry", data = new { activitiesCount = activities?.Count ?? 0, chartInstanceExists = chartInstance != null }, runId = "post-fix", hypothesisId = "B" });
-        // #endregion
-        try
-        {
-            var chartData = activities
-                .GroupBy(a => a.ActivityTypeId)
-                .Select(g => new
-                {
-                    TypeId = g.Key,
-                    Count = g.Count()
-                })
-                .ToList();
-
-            var labels = chartData.Select(d => GetActivityTypeName(d.TypeId)).ToArray();
-            var data = chartData.Select(d => d.Count).ToArray();
-            var colors = chartData.Select(d => GetActivityTypeColor(d.TypeId)).ToArray();
-            
-            // #region agent log
-            await JSRuntime.InvokeVoidAsync("debugLog", new { location = "Index.razor:116", message = "Before chart destroy/create", data = new { labelsCount = labels?.Length ?? 0, dataCount = data?.Length ?? 0, hasExistingChart = chartInstance != null }, runId = "post-fix", hypothesisId = "B" });
-            // #endregion
-            if (chartInstance != null)
+        var chartData = activities
+            .GroupBy(a => a.ActivityTypeId)
+            .Select(g => new
             {
-                // #region agent log
-                await JSRuntime.InvokeVoidAsync("debugLog", new { location = "Index.razor:118", message = "Before chartHelper.destroyChart", data = new { canvasId = chartInstance }, runId = "post-fix", hypothesisId = "B" });
-                // #endregion
-                await JSRuntime.InvokeVoidAsync("chartHelper.destroyChart", chartInstance);
-                // #region agent log
-                await JSRuntime.InvokeVoidAsync("debugLog", new { location = "Index.razor:119", message = "After chartHelper.destroyChart", data = new { }, runId = "post-fix", hypothesisId = "B" });
-                // #endregion
-            }
+                TypeId = g.Key,
+                Count = g.Count()
+            })
+            .ToList();
 
-            // #region agent log
-            await JSRuntime.InvokeVoidAsync("debugLog", new { location = "Index.razor:123", message = "Before chartHelper.createChart", data = new { canvasId = "activityChart", labelsCount = labels?.Length ?? 0 }, runId = "post-fix", hypothesisId = "B" });
-            // #endregion
-            chartInstance = await JSRuntime.InvokeAsync<string>("chartHelper.createChart", "activityChart", "bar", labels, data, colors);
-            // #region agent log
-            await JSRuntime.InvokeVoidAsync("debugLog", new { location = "Index.razor:124", message = "After chartHelper.createChart", data = new { chartInstanceCreated = chartInstance != null, chartInstanceValue = chartInstance }, runId = "post-fix", hypothesisId = "B" });
-            // #endregion
-        }
-        catch (Exception ex)
+        var labels = chartData.Select(d => GetActivityTypeName(d.TypeId)).ToArray();
+        var data = chartData.Select(d => d.Count).ToArray();
+        var colors = chartData.Select(d => GetActivityTypeColor(d.TypeId)).ToArray();
+        
+        if (chartInstance != null)
         {
-            // #region agent log
-            await JSRuntime.InvokeVoidAsync("debugLog", new { location = "Index.razor:128", message = "UpdateChart exception", data = new { exceptionType = ex.GetType().Name, exceptionMessage = ex.Message }, runId = "run1", hypothesisId = "B" });
-            // #endregion
-            throw;
+            await JSRuntime.InvokeVoidAsync("chartHelper.destroyChart", chartInstance);
         }
+
+        chartInstance = await JSRuntime.InvokeAsync<string>("chartHelper.createChart", "activityChart", "bar", labels, data, colors);
     }
 
     private string GetActivityTypeName(int activityTypeId)

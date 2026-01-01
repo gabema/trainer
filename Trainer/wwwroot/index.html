@@ -32,37 +32,6 @@
     <script src="js/chart-helper.js"></script>
     <script src="_framework/blazor.webassembly.js"></script>
     <script>
-        // Global error handler for debugging (must be after chart-helper.js loads debugLog)
-        window.addEventListener('error', function(event) {
-            if (window.debugLog) {
-                window.debugLog({
-                    location: 'index.html:error-handler',
-                    message: 'Unhandled JavaScript error',
-                    data: {
-                        message: event.message,
-                        filename: event.filename,
-                        lineno: event.lineno,
-                        colno: event.colno,
-                        error: event.error?.toString()
-                    },
-                    runId: 'run1',
-                    hypothesisId: 'ALL'
-                });
-            }
-        });
-        window.addEventListener('unhandledrejection', function(event) {
-            if (window.debugLog) {
-                window.debugLog({
-                    location: 'index.html:rejection-handler',
-                    message: 'Unhandled promise rejection',
-                    data: {
-                        reason: event.reason?.toString()
-                    },
-                    runId: 'run1',
-                    hypothesisId: 'ALL'
-                });
-            }
-        });
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 const baseHref = document.querySelector('base')?.getAttribute('href') || '/';
