@@ -58,9 +58,26 @@
 
     private ActivityType activityType = new();
     private bool IsEditMode => Id > 0;
+    private string returnUrl = "/activity";
 
     protected override async Task OnInitializedAsync()
     {
+        // Parse return URL from query parameters
+        var uri = new Uri(Navigation.Uri);
+        if (!string.IsNullOrEmpty(uri.Query))
+        {
+            var queryString = uri.Query.TrimStart('?');
+            var queryParams = queryString.Split('&')
+                .Select(p => p.Split('='))
+                .Where(p => p.Length == 2)
+                .ToDictionary(p => Uri.UnescapeDataString(p[0]), p => Uri.UnescapeDataString(p[1]));
+            
+            if (queryParams.TryGetValue("returnUrl", out var url))
+            {
+                returnUrl = url;
+            }
+        }
+        
         if (IsEditMode)
         {
             var existingType = await ActivityTypeService.GetByIdAsync(Id);
@@ -102,12 +119,12 @@
             await ActivityTypeService.AddAsync(activityType);
         }
         
-        Navigation.NavigateTo(GetNavigationPath("/activity"));
+        Navigation.NavigateTo(GetNavigationPath(returnUrl));
     }
 
     private void Cancel()
     {
-        Navigation.NavigateTo(GetNavigationPath("/activity"));
+        Navigation.NavigateTo(GetNavigationPath(returnUrl));
     }
 }
 
