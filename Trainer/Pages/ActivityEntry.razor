@@ -18,7 +18,7 @@
         <div class="mb-3">
             <label class="form-label">Type</label>
             <div class="input-group">
-                <InputSelect @bind-Value="activity.ActivityTypeId" class="form-select">
+                <InputSelect @bind-Value="ActivityTypeId" class="form-select">
                     <option value="0">Select an activity type...</option>
                     @foreach (var type in activityTypes)
                     {
@@ -57,7 +57,7 @@
         </div>
 
         <div class="mb-3">
-            <label class="form-label">Amount</label>
+            <label class="form-label">Amount@(selectedActivityType?.Unit != null ? $" ({selectedActivityType.Unit})" : "")</label>
             <InputNumber @bind-Value="activity.Amount" class="form-control" min="0" step="1" />
             <ValidationMessage For="@(() => activity.Amount)" />
         </div>
@@ -80,7 +80,18 @@
 
     private Activity activity = new() { When = DateTime.Now };
     private List<ActivityType> activityTypes = new();
+    private ActivityType? selectedActivityType;
     private bool IsEditMode => Id > 0;
+
+    private int ActivityTypeId
+    {
+        get => activity.ActivityTypeId;
+        set
+        {
+            activity.ActivityTypeId = value;
+            UpdateSelectedActivityType();
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -94,6 +105,14 @@
                 activity = existingActivity;
             }
         }
+        
+        UpdateSelectedActivityType();
+    }
+
+    private void UpdateSelectedActivityType()
+    {
+        selectedActivityType = activityTypes.FirstOrDefault(t => t.Id == activity.ActivityTypeId);
+        StateHasChanged();
     }
 
     private string GetNavigationPath(string path)
