@@ -117,7 +117,7 @@ public class ActivityServiceTests
 
         // Assert
         Assert.True(result.Id > 0);
-        Assert.Equal(1, activities.Count);
+        Assert.Single(activities);
         _storageServiceMock.Verify(x => x.SetItemAsync("activities", It.IsAny<List<Activity>>()), Times.Once);
     }
 

@@ -5,9 +5,11 @@
 
 <PageTitle>@(IsEditMode ? "Edit Activity Type" : "Add Activity Type")</PageTitle>
 
-<div class="container mt-4">
-    <h2>@(IsEditMode ? "Edit Activity Type" : "Add Activity Type")</h2>
+<div class="header-area">
+    <h1 class="mb-0">@(IsEditMode ? "Edit Activity Type" : "Add Activity Type")</h1>
+</div>
 
+<div class="container mt-4">
     <EditForm Model="@activityType" OnValidSubmit="HandleSubmit">
         <DataAnnotationsValidator />
         
@@ -19,21 +21,17 @@
 
         <div class="mb-3">
             <label class="form-label">Net Benefit</label>
-            <div class="btn-group" role="group">
-                <input type="radio" class="btn-check" name="netBenefit" id="netBenefitNone" 
-                       checked="@(activityType.NetBenefit == NetBenefit.None)"
-                       @onchange="() => SetNetBenefit(NetBenefit.None)" />
-                <label class="btn btn-outline-secondary" for="netBenefitNone">None</label>
-
-                <input type="radio" class="btn-check" name="netBenefit" id="netBenefitPositive" 
-                       checked="@(activityType.NetBenefit == NetBenefit.Positive)"
-                       @onchange="() => SetNetBenefit(NetBenefit.Positive)" />
-                <label class="btn btn-outline-success" for="netBenefitPositive">Positive</label>
-
-                <input type="radio" class="btn-check" name="netBenefit" id="netBenefitNegative" 
-                       checked="@(activityType.NetBenefit == NetBenefit.Negative)"
-                       @onchange="() => SetNetBenefit(NetBenefit.Negative)" />
-                <label class="btn btn-outline-danger" for="netBenefitNegative">Negative</label>
+            <div class="btn-group mt-2" role="group">
+                <button type="button" 
+                        class="btn @(activityType.NetBenefit == NetBenefit.Positive ? "btn-success" : "btn-outline-success")" 
+                        @onclick="() => ToggleNetBenefit(NetBenefit.Positive)">
+                    Positive
+                </button>
+                <button type="button" 
+                        class="btn @(activityType.NetBenefit == NetBenefit.Negative ? "btn-danger" : "btn-outline-danger")" 
+                        @onclick="() => ToggleNetBenefit(NetBenefit.Negative)">
+                    Negative
+                </button>
             </div>
         </div>
 
@@ -73,9 +71,17 @@
         }
     }
 
-    private void SetNetBenefit(NetBenefit benefit)
+    private void ToggleNetBenefit(NetBenefit benefit)
     {
-        activityType.NetBenefit = benefit;
+        // If clicking the same option, deselect it (set to None)
+        if (activityType.NetBenefit == benefit)
+        {
+            activityType.NetBenefit = NetBenefit.None;
+        }
+        else
+        {
+            activityType.NetBenefit = benefit;
+        }
     }
 
     private string GetNavigationPath(string path)

@@ -41,7 +41,7 @@ public class LocalStorageServiceTests
     {
         // Arrange
         _jsRuntimeMock
-            .Setup(x => x.InvokeAsync<string>(It.IsAny<string>(), It.IsAny<object[]>()))
+            .Setup(x => x.InvokeAsync<string?>(It.IsAny<string>(), It.IsAny<object[]>()))
             .ReturnsAsync((string?)null);
 
         // Act

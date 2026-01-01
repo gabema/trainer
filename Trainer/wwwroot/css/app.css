@@ -101,3 +101,59 @@ a, .btn-link {
 code {
     color: #c02d76;
 }
+
+.header-area {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background-color: #f7f7f7;
+    border-bottom: 1px solid #d6d5d5;
+    min-height: 3.5rem;
+}
+
+.header-area h1 {
+    font-size: 1.5rem;
+    margin: 0;
+    font-weight: 600;
+}
+
+@media (min-width: 641px) {
+    .header-area {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+    }
+}
+
+.header-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.icon-button {
+    background: none;
+    border: none;
+    padding: 0.5rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #0071c1;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.icon-button:hover {
+    background-color: rgba(0, 113, 193, 0.1);
+}
+
+.icon-button:active {
+    background-color: rgba(0, 113, 193, 0.2);
+}
+
+.icon-button svg {
+    width: 24px;
+    height: 24px;
+}

@@ -7,9 +7,11 @@
 
 <PageTitle>Trainer - Health Activity Tracker</PageTitle>
 
-<div class="container mt-4">
-    <h1 class="mb-4">Health Activity Tracker</h1>
+<div class="header-area">
+    <h1 class="mb-0 flex-grow-1">Health Activity Tracker</h1>
+</div>
 
+<div class="container mt-4">
     <div class="row mb-4">
         <div class="col-md-12">
             <div class="card">
@@ -23,19 +25,30 @@
         </div>
     </div>
 
-    <div class="row mb-3">
-        <div class="col-md-12">
-            <button class="btn btn-primary me-2" @onclick="AddNewActivity">Add new Activity</button>
-            <button class="btn btn-secondary me-2" @onclick="ExportActivities">Export Activities</button>
-            <button class="btn btn-info" @onclick="ImportActivities">Import Activities</button>
-        </div>
-    </div>
-
     <div class="row">
         <div class="col-md-12">
             <div class="card">
-                <div class="card-header">
-                    <h5>Activities</h5>
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Activities</h5>
+                    <div class="header-actions">
+                        <button class="icon-button" @onclick="AddNewActivity" title="Add new Activity">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
+                            </svg>
+                        </button>
+                        <button class="icon-button" @onclick="ExportActivities" title="Export Activities">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M.5 9.9a.5.5 0 0 1 .5.5h2.5a.5.5 0 0 1 0 1H3a1 1 0 0 0-1 1V14a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-1.6a.5.5 0 0 1 0-1H15v-1a.5.5 0 0 1 .5-.5h.5a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5H.5a.5.5 0 0 1-.5-.5v-2a.5.5 0 0 1 .5-.5z"/>
+                                <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+                            </svg>
+                        </button>
+                        <button class="icon-button" @onclick="ImportActivities" title="Import Activities">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M.5 9.9a.5.5 0 0 1 .5.5h2.5a.5.5 0 0 1 0 1H3a1 1 0 0 0-1 1V14a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-1.6a.5.5 0 0 1 0-1H15v-1a.5.5 0 0 1 .5-.5h.5a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5H.5a.5.5 0 0 1-.5-.5v-2a.5.5 0 0 1 .5-.5z"/>
+                                <path d="M8.354 1.146a.5.5 0 0 0-.708 0l-3 3a.5.5 0 0 0 .708.708L7.5 2.707V11.5a.5.5 0 0 0 1 0V2.707l2.146 2.147a.5.5 0 0 0 .708-.708l-3-3z"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
                 <div class="card-body">
                     @if (activities.Any())
