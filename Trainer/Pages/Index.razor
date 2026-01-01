@@ -134,14 +134,22 @@
         };
     }
 
+    private string GetNavigationPath(string path)
+    {
+        var baseUri = Navigation.BaseUri.TrimEnd('/');
+        var normalizedPath = path.TrimStart('/');
+        var fullPath = $"{baseUri}/{normalizedPath}";
+        return fullPath;
+    }
+
     private void AddNewActivity()
     {
-        Navigation.NavigateTo("/activity");
+        Navigation.NavigateTo(GetNavigationPath("/activity"));
     }
 
     private void EditActivity(int id)
     {
-        Navigation.NavigateTo($"/activity/{id}");
+        Navigation.NavigateTo(GetNavigationPath($"/activity/{id}"));
     }
 
     private async Task ExportActivities()
