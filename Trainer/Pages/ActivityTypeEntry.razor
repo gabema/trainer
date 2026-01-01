@@ -75,7 +75,8 @@
             var queryParams = queryString.Split('&')
                 .Select(p => p.Split('='))
                 .Where(p => p.Length == 2)
-                .ToDictionary(p => Uri.UnescapeDataString(p[0]), p => Uri.UnescapeDataString(p[1]));
+                .GroupBy(p => Uri.UnescapeDataString(p[0]), p => Uri.UnescapeDataString(p[1]))
+                .ToDictionary(g => g.Key, g => g.First());
             
             if (queryParams.TryGetValue("returnUrl", out var url))
             {
