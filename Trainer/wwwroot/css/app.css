@@ -1,5 +1,142 @@
+/* CSS Variables for theming */
+:root {
+    --link-color: #0071c1;
+    --btn-primary-bg: #1b6ec2;
+    --btn-primary-border: #1861ac;
+    --btn-focus-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+    --header-bg: #f7f7f7;
+    --header-border: #d6d5d5;
+    --icon-button-color: #0071c1;
+    --icon-button-hover: rgba(0, 113, 193, 0.1);
+    --icon-button-active: rgba(0, 113, 193, 0.2);
+    --loading-stroke: #e0e0e0;
+    --loading-progress: #1b6ec2;
+    --code-color: #c02d76;
+    --error-ui-bg: lightyellow;
+    --text-muted: #6c757d;
+}
+
+[data-bs-theme="dark"] {
+    --link-color: #5db3ff;
+    --btn-primary-bg: #0d6efd;
+    --btn-primary-border: #0a58ca;
+    --btn-focus-shadow: 0 0 0 0.1rem rgba(13, 110, 253, 0.5), 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    --header-bg: #212529;
+    --header-border: #495057;
+    --icon-button-color: #5db3ff;
+    --icon-button-hover: rgba(93, 179, 255, 0.1);
+    --icon-button-active: rgba(93, 179, 255, 0.2);
+    --loading-stroke: #495057;
+    --loading-progress: #0d6efd;
+    --code-color: #e685b5;
+    --error-ui-bg: #664d03;
+    --text-muted: #adb5bd;
+}
+
+/* Dark mode background and text colors */
+[data-bs-theme="dark"] body {
+    background-color: #212529;
+    color: #fff;
+}
+
+/* Dark mode for Bootstrap cards */
+[data-bs-theme="dark"] .card {
+    background-color: #343a40;
+    border-color: #495057;
+    color: #fff;
+}
+
+[data-bs-theme="dark"] .card-header {
+    background-color: #495057;
+    border-color: #6c757d;
+    color: #fff;
+}
+
+[data-bs-theme="dark"] .card-body {
+    color: #fff;
+}
+
+[data-bs-theme="dark"] .card-body h5,
+[data-bs-theme="dark"] .card-body h1,
+[data-bs-theme="dark"] .card-body h2,
+[data-bs-theme="dark"] .card-body h3,
+[data-bs-theme="dark"] .card-body h4,
+[data-bs-theme="dark"] .card-body h6 {
+    color: #fff;
+}
+
+/* Dark mode for Bootstrap tables */
+[data-bs-theme="dark"] .table {
+    color: #fff;
+    border-color: #495057;
+}
+
+[data-bs-theme="dark"] .table td,
+[data-bs-theme="dark"] .table th {
+    color: #fff;
+    border-color: #495057;
+}
+
+[data-bs-theme="dark"] .table thead th {
+    color: #fff;
+    border-color: #495057;
+}
+
+[data-bs-theme="dark"] .table tbody td {
+    color: #fff;
+}
+
+[data-bs-theme="dark"] .table-striped > tbody > tr:nth-of-type(odd) > td,
+[data-bs-theme="dark"] .table-striped > tbody > tr:nth-of-type(odd) > th {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: #fff;
+}
+
+[data-bs-theme="dark"] .table-hover > tbody > tr:hover > td,
+[data-bs-theme="dark"] .table-hover > tbody > tr:hover > th {
+    background-color: rgba(255, 255, 255, 0.075);
+    color: #fff;
+}
+
+/* Dark mode for form controls */
+[data-bs-theme="dark"] .form-control {
+    background-color: #343a40;
+    border-color: #495057;
+    color: #fff;
+}
+
+[data-bs-theme="dark"] .form-control:focus {
+    background-color: #343a40;
+    border-color: #86b7fe;
+    color: #fff;
+}
+
+[data-bs-theme="dark"] .form-select {
+    background-color: #343a40;
+    border-color: #495057;
+    color: #fff;
+}
+
+[data-bs-theme="dark"] .form-select:focus {
+    border-color: #86b7fe;
+}
+
+/* Dark mode for text-muted */
+[data-bs-theme="dark"] .text-muted {
+    color: #adb5bd !important;
+}
+
 html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+[data-bs-theme="dark"] {
+    color-scheme: dark;
+}
+
+[data-bs-theme="dark"] body {
+    background-color: #212529;
+    color: #fff;
 }
 
 h1:focus {
@@ -7,17 +144,17 @@ h1:focus {
 }
 
 a, .btn-link {
-    color: #0071c1;
+    color: var(--link-color);
 }
 
 .btn-primary {
     color: #fff;
-    background-color: #1b6ec2;
-    border-color: #1861ac;
+    background-color: var(--btn-primary-bg);
+    border-color: var(--btn-primary-border);
 }
 
 .btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+  box-shadow: var(--btn-focus-shadow);
 }
 
 .content {
@@ -37,7 +174,7 @@ a, .btn-link {
 }
 
 #blazor-error-ui {
-    background: lightyellow;
+    background: var(--error-ui-bg);
     bottom: 0;
     box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
     display: none;
@@ -46,6 +183,10 @@ a, .btn-link {
     position: fixed;
     width: 100%;
     z-index: 1000;
+}
+
+[data-bs-theme="dark"] #blazor-error-ui {
+    color: #fff;
 }
 
     #blazor-error-ui .dismiss {
@@ -75,14 +216,14 @@ a, .btn-link {
 
     .loading-progress circle {
         fill: none;
-        stroke: #e0e0e0;
+        stroke: var(--loading-stroke);
         stroke-width: 0.6rem;
         transform-origin: 50% 50%;
         transform: rotate(-90deg);
     }
 
         .loading-progress circle:last-child {
-            stroke: #1b6ec2;
+            stroke: var(--loading-progress);
             stroke-dasharray: calc(3.141 * var(--blazor-load-percentage, 0%) * 0.8), 500%;
             transition: stroke-dasharray 0.05s ease-in-out;
         }
@@ -99,7 +240,7 @@ a, .btn-link {
     }
 
 code {
-    color: #c02d76;
+    color: var(--code-color);
 }
 
 .header-area {
@@ -107,8 +248,8 @@ code {
     align-items: center;
     gap: 1rem;
     padding: 1rem;
-    background-color: #f7f7f7;
-    border-bottom: 1px solid #d6d5d5;
+    background-color: var(--header-bg);
+    border-bottom: 1px solid var(--header-border);
     min-height: 3.5rem;
 }
 
@@ -140,17 +281,17 @@ code {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #0071c1;
+    color: var(--icon-button-color);
     border-radius: 4px;
     transition: background-color 0.2s;
 }
 
 .icon-button:hover {
-    background-color: rgba(0, 113, 193, 0.1);
+    background-color: var(--icon-button-hover);
 }
 
 .icon-button:active {
-    background-color: rgba(0, 113, 193, 0.2);
+    background-color: var(--icon-button-active);
 }
 
 .icon-button svg {
