@@ -9,16 +9,3 @@ main {
     width: 100%;
 }
 
-.header-area {
-    background-color: #f7f7f7;
-    border-bottom: 1px solid #d6d5d5;
-    min-height: 3.5rem;
-}
-
-@media (min-width: 641px) {
-    .header-area {
-        position: sticky;
-        top: 0;
-        z-index: 1;
-    }
-}
