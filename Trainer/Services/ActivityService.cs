@@ -107,21 +107,32 @@ public class ActivityService : IActivityService
         {
             // Activity stays in the same week
             var weekActivities = await _storageService.GetActivitiesByWeekAsync(oldWeekKey);
-            var index = weekActivities.FindIndex(a => a.Id == activity.Id);
-            if (index >= 0)
-            {
-                weekActivities[index] = activity;
-                await _storageService.SetActivitiesForWeekAsync(oldWeekKey, weekActivities);
-            }
+            // Remove any existing entries with this ID first to prevent duplicates
+            weekActivities.RemoveAll(a => a.Id == activity.Id);
+            // Add the updated activity
+            weekActivities.Add(activity);
+            await _storageService.SetActivitiesForWeekAsync(oldWeekKey, weekActivities);
         }
         else
         {
             // Activity moved to a different week - remove from old week, add to new week
             var oldWeekActivities = await _storageService.GetActivitiesByWeekAsync(oldWeekKey);
             oldWeekActivities.RemoveAll(a => a.Id == activity.Id);
-            await _storageService.SetActivitiesForWeekAsync(oldWeekKey, oldWeekActivities);
+            
+            // If the old week is now empty, delete the week key; otherwise save the updated list
+            if (oldWeekActivities.Count == 0)
+            {
+                await _storageService.RemoveActivitiesForWeekAsync(oldWeekKey);
+            }
+            else
+            {
+                await _storageService.SetActivitiesForWeekAsync(oldWeekKey, oldWeekActivities);
+            }
 
             var newWeekActivities = await _storageService.GetActivitiesByWeekAsync(newWeekKey);
+            // Remove any existing entries with this ID first to prevent duplicates
+            newWeekActivities.RemoveAll(a => a.Id == activity.Id);
+            // Add the updated activity
             newWeekActivities.Add(activity);
             await _storageService.SetActivitiesForWeekAsync(newWeekKey, newWeekActivities);
         }
