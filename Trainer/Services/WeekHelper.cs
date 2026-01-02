@@ -20,6 +20,7 @@ public static class WeekHelper
 
     /// <summary>
     /// Converts a week key (YYYY.WW) back to the start date of that week
+    /// Uses the same calculation as GetWeekOfYear to ensure consistency
     /// </summary>
     public static DateTime GetWeekStartDate(string weekKey)
     {
@@ -29,19 +30,28 @@ public static class WeekHelper
             throw new ArgumentException($"Invalid week key format: {weekKey}", nameof(weekKey));
         }
 
-        // Find the first Thursday of the year (ISO 8601 standard)
-        var jan1 = new DateTime(year, 1, 1);
-        var daysOffset = DayOfWeek.Thursday - jan1.DayOfWeek;
-
-        // Get the first Thursday
-        var firstThursday = jan1.AddDays(daysOffset > 0 ? daysOffset : daysOffset + 7);
-
-        // ISO 8601 weeks start on Monday, so get the Monday of the week containing firstThursday
-        var startOfYear = firstThursday.AddDays(-3);
-
-        // Add weeks to get to the requested week
-        var requestedWeekStart = startOfYear.AddDays((week - 1) * 7);
-        return requestedWeekStart;
+        // Find a date in the target week by iterating from January 1st
+        // We'll find a date that has the matching week number, then get the Monday of that week
+        var startDate = new DateTime(year, 1, 1);
+        var endDate = new DateTime(year, 12, 31);
+        
+        // Find a date that belongs to the target week
+        DateTime dateInWeek = startDate;
+        for (var date = startDate; date <= endDate; date = date.AddDays(1))
+        {
+            var testWeekKey = GetWeekKey(date);
+            if (testWeekKey == weekKey)
+            {
+                dateInWeek = date;
+                break;
+            }
+        }
+        
+        // Get the Monday of the week containing this date
+        var daysToMonday = ((int)dateInWeek.DayOfWeek - (int)DayOfWeek.Monday + 7) % 7;
+        var weekStart = dateInWeek.AddDays(-daysToMonday).Date;
+        
+        return weekStart;
     }
 
     /// <summary>
