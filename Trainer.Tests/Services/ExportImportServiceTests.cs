@@ -20,9 +20,10 @@ public class ExportImportServiceTests
     public async Task ExportDataAsync_ReturnsJsonWithActivitiesAndTypes()
     {
         // Arrange
+        var testDate = DateTime.Now;
         var activities = new List<Activity>
         {
-            new() { Id = 1, ActivityTypeId = 1, When = DateTime.Now, Amount = 100, Notes = "Test" }
+            new() { Id = 1, ActivityTypeId = 1, When = testDate, Amount = 100, Notes = "Test" }
         };
 
         var activityTypes = new List<ActivityType>
@@ -46,6 +47,11 @@ public class ExportImportServiceTests
         Assert.Contains("activities", result);
         Assert.Contains("activityTypes", result);
         Assert.Contains("exportDate", result);
+        
+        // Verify weekly format
+        var jsonDoc = JsonDocument.Parse(result);
+        var activitiesElement = jsonDoc.RootElement.GetProperty("activities");
+        Assert.Equal(JsonValueKind.Object, activitiesElement.ValueKind);
     }
 
     [Fact]
@@ -71,14 +77,15 @@ public class ExportImportServiceTests
     }
 
     [Fact]
-    public async Task ImportDataAsync_ImportsActivitiesAndTypes()
+    public async Task ImportDataAsync_ImportsActivitiesAndTypes_OldFormat()
     {
-        // Arrange
+        // Arrange - Test old format (array)
+        var testDate = DateTime.Now;
         var exportData = new
         {
             activities = new List<Activity>
             {
-                new() { Id = 1, ActivityTypeId = 1, When = DateTime.Now, Amount = 100, Notes = "Test" }
+                new() { Id = 1, ActivityTypeId = 1, When = testDate, Amount = 100, Notes = "Test" }
             },
             activityTypes = new List<ActivityType>
             {
@@ -100,6 +107,44 @@ public class ExportImportServiceTests
         await _service.ImportDataAsync(json);
 
         // Assert
+        _storageServiceMock.Verify(x => x.SetItemAsync("activities", It.IsAny<List<Activity>>()), Times.Once);
+        _storageServiceMock.Verify(x => x.SetItemAsync("activityTypes", It.IsAny<List<ActivityType>>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ImportDataAsync_ImportsActivitiesAndTypes_NewFormat()
+    {
+        // Arrange - Test new format (weekly object)
+        var testDate = DateTime.Now;
+        var weekKey = WeekHelper.GetWeekKey(testDate);
+        var exportData = new
+        {
+            activities = new Dictionary<string, List<Activity>>
+            {
+                { weekKey, new List<Activity> { new() { Id = 1, ActivityTypeId = 1, When = testDate, Amount = 100, Notes = "Test" } } }
+            },
+            activityTypes = new List<ActivityType>
+            {
+                new() { Id = 1, Name = "Water", NetBenefit = NetBenefit.Positive }
+            }
+        };
+
+        var json = JsonSerializer.Serialize(exportData, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+
+        // Since ExportImportService checks if _storageService is IndexedDbStorageService,
+        // and our mock is IStorageService, it will fall back to flattening and storing as a list
+        _storageServiceMock
+            .Setup(x => x.SetItemAsync("activities", It.IsAny<List<Activity>>()))
+            .Returns(Task.CompletedTask);
+
+        _storageServiceMock
+            .Setup(x => x.SetItemAsync("activityTypes", It.IsAny<List<ActivityType>>()))
+            .Returns(Task.CompletedTask);
+
+        // Act
+        await _service.ImportDataAsync(json);
+
+        // Assert - Since the mock is IStorageService (not IndexedDbStorageService), it uses SetItemAsync
         _storageServiceMock.Verify(x => x.SetItemAsync("activities", It.IsAny<List<Activity>>()), Times.Once);
         _storageServiceMock.Verify(x => x.SetItemAsync("activityTypes", It.IsAny<List<ActivityType>>()), Times.Once);
     }

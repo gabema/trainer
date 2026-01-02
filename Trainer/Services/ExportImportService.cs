@@ -20,12 +20,33 @@ public class ExportImportService : IExportImportService
 
     public async Task<string> ExportDataAsync()
     {
-        var activities = await _storageService.GetItemAsync<List<Activity>>("activities") ?? new List<Activity>();
         var activityTypes = await _storageService.GetItemAsync<List<ActivityType>>("activityTypes") ?? new List<ActivityType>();
+
+        // Export activities in weekly format
+        Dictionary<string, List<Activity>> activitiesByWeek;
+        
+        if (_storageService is IndexedDbStorageService indexedDbService)
+        {
+            // Get all week keys
+            var allActivities = await _storageService.GetItemAsync<List<Activity>>("activities") ?? new List<Activity>();
+            
+            // Group by week for export format
+            activitiesByWeek = allActivities
+                .GroupBy(a => WeekHelper.GetWeekKey(a.When))
+                .ToDictionary(g => g.Key, g => g.ToList());
+        }
+        else
+        {
+            // Fallback for other storage services - group existing activities
+            var activities = await _storageService.GetItemAsync<List<Activity>>("activities") ?? new List<Activity>();
+            activitiesByWeek = activities
+                .GroupBy(a => WeekHelper.GetWeekKey(a.When))
+                .ToDictionary(g => g.Key, g => g.ToList());
+        }
 
         var exportData = new
         {
-            Activities = activities,
+            Activities = activitiesByWeek,
             ActivityTypes = activityTypes,
             ExportDate = DateTime.UtcNow
         };
@@ -37,28 +58,92 @@ public class ExportImportService : IExportImportService
     {
         try
         {
-            var importData = JsonSerializer.Deserialize<ImportData>(jsonData, _jsonOptions);
-            
-            if (importData?.Activities != null)
+            using var jsonDoc = JsonDocument.Parse(jsonData);
+            var root = jsonDoc.RootElement;
+
+            // Handle activities - support both old format (array) and new format (weekly object)
+            if (root.TryGetProperty("activities", out var activitiesElement))
             {
-                await _storageService.SetItemAsync("activities", importData.Activities);
+                if (activitiesElement.ValueKind == JsonValueKind.Array)
+                {
+                    // Old format: activities is an array
+                    var activities = JsonSerializer.Deserialize<List<Activity>>(activitiesElement, _jsonOptions);
+                    if (activities != null)
+                    {
+                        await _storageService.SetItemAsync("activities", activities);
+                    }
+                }
+                else if (activitiesElement.ValueKind == JsonValueKind.Object)
+                {
+                    // New format: activities is an object with week keys
+                    var activitiesByWeek = JsonSerializer.Deserialize<Dictionary<string, List<Activity>>>(activitiesElement, _jsonOptions);
+                    if (activitiesByWeek != null && _storageService is IndexedDbStorageService indexedDbService)
+                    {
+                        // Store each week's activities
+                        foreach (var weekGroup in activitiesByWeek)
+                        {
+                            await indexedDbService.SetActivitiesForWeekAsync(weekGroup.Key, weekGroup.Value);
+                        }
+                    }
+                    else if (activitiesByWeek != null)
+                    {
+                        // Flatten and store for non-IndexedDB storage
+                        var allActivities = activitiesByWeek.Values.SelectMany(x => x).ToList();
+                        await _storageService.SetItemAsync("activities", allActivities);
+                    }
+                }
+            }
+            else if (root.TryGetProperty("Activities", out var activitiesElementPascal))
+            {
+                // Try with PascalCase property name (backward compatibility)
+                if (activitiesElementPascal.ValueKind == JsonValueKind.Array)
+                {
+                    var activities = JsonSerializer.Deserialize<List<Activity>>(activitiesElementPascal, _jsonOptions);
+                    if (activities != null)
+                    {
+                        await _storageService.SetItemAsync("activities", activities);
+                    }
+                }
+                else if (activitiesElementPascal.ValueKind == JsonValueKind.Object)
+                {
+                    var activitiesByWeek = JsonSerializer.Deserialize<Dictionary<string, List<Activity>>>(activitiesElementPascal, _jsonOptions);
+                    if (activitiesByWeek != null && _storageService is IndexedDbStorageService indexedDbService)
+                    {
+                        foreach (var weekGroup in activitiesByWeek)
+                        {
+                            await indexedDbService.SetActivitiesForWeekAsync(weekGroup.Key, weekGroup.Value);
+                        }
+                    }
+                    else if (activitiesByWeek != null)
+                    {
+                        var allActivities = activitiesByWeek.Values.SelectMany(x => x).ToList();
+                        await _storageService.SetItemAsync("activities", allActivities);
+                    }
+                }
             }
 
-            if (importData?.ActivityTypes != null)
+            // Handle activity types
+            if (root.TryGetProperty("activityTypes", out var activityTypesElement))
             {
-                await _storageService.SetItemAsync("activityTypes", importData.ActivityTypes);
+                var activityTypes = JsonSerializer.Deserialize<List<ActivityType>>(activityTypesElement, _jsonOptions);
+                if (activityTypes != null)
+                {
+                    await _storageService.SetItemAsync("activityTypes", activityTypes);
+                }
+            }
+            else if (root.TryGetProperty("ActivityTypes", out var activityTypesElementPascal))
+            {
+                var activityTypes = JsonSerializer.Deserialize<List<ActivityType>>(activityTypesElementPascal, _jsonOptions);
+                if (activityTypes != null)
+                {
+                    await _storageService.SetItemAsync("activityTypes", activityTypes);
+                }
             }
         }
-        catch
+        catch (Exception ex)
         {
-            throw new InvalidOperationException("Invalid import data format");
+            throw new InvalidOperationException($"Invalid import data format: {ex.Message}", ex);
         }
-    }
-
-    private class ImportData
-    {
-        public List<Activity>? Activities { get; set; }
-        public List<ActivityType>? ActivityTypes { get; set; }
     }
 }
 
