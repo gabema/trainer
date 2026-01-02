@@ -16,10 +16,22 @@
         <div class="col-md-12">
             <div class="card">
                 <div class="card-header">
-                    <h5>Activities by Type</h5>
+                    <h5>Activity by Goal Duration</h5>
                 </div>
                 <div class="card-body">
-                    <canvas id="activityChart" style="height: 300px;"></canvas>
+                    <div class="mb-3">
+                        <div class="btn-group" role="group">
+                            <input type="radio" class="btn-check" name="duration" id="duration24h" @onchange="() => OnDurationChanged(DurationOption.Last24Hours)" checked="@(selectedDuration == DurationOption.Last24Hours)" />
+                            <label class="btn btn-outline-primary" for="duration24h">Activity By Last 24 hours</label>
+                            
+                            <input type="radio" class="btn-check" name="duration" id="duration7d" @onchange="() => OnDurationChanged(DurationOption.Last7Days)" checked="@(selectedDuration == DurationOption.Last7Days)" />
+                            <label class="btn btn-outline-primary" for="duration7d">Activity by Last 7 days</label>
+                            
+                            <input type="radio" class="btn-check" name="duration" id="durationWeek" @onchange="() => OnDurationChanged(DurationOption.Week)" checked="@(selectedDuration == DurationOption.Week)" />
+                            <label class="btn btn-outline-primary" for="durationWeek">Activity by Week</label>
+                        </div>
+                    </div>
+                    <canvas id="goalDurationChart" style="width: 100%; height: 400px; max-width: 100%;"></canvas>
                 </div>
             </div>
         </div>
@@ -91,13 +103,23 @@
     private List<Activity> activities = new();
     private List<ActivityType> activityTypes = new();
     private string? chartInstance;
+    private DurationOption selectedDuration = DurationOption.Week;
+    private bool _isUpdatingChart = false;
+    private bool _hasInitialized = false;
+
+    private enum DurationOption
+    {
+        Last24Hours,
+        Last7Days,
+        Week
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
+        if (firstRender && !_hasInitialized)
         {
+            _hasInitialized = true;
             await LoadData();
-            await UpdateChart();
         }
     }
 
@@ -106,29 +128,148 @@
         activities = await ActivityService.GetAllAsync(); // Loads all activities by default
         activityTypes = await ActivityTypeService.GetAllAsync();
         StateHasChanged();
+        // Update chart after state change to ensure DOM is ready
+        await Task.Delay(50);
+        await UpdateGoalDurationChart();
     }
 
-    private async Task UpdateChart()
+    private async Task OnDurationChanged(DurationOption duration)
     {
-        var chartData = activities
-            .GroupBy(a => a.ActivityTypeId)
-            .Select(g => new
-            {
-                TypeId = g.Key,
-                Count = g.Count()
-            })
-            .ToList();
+        if (selectedDuration == duration)
+            return; // No change needed
+            
+        selectedDuration = duration;
+        StateHasChanged();
+        // Small delay to ensure UI is updated before chart update
+        await Task.Delay(50);
+        await UpdateGoalDurationChart();
+    }
 
-        var labels = chartData.Select(d => GetActivityTypeName(d.TypeId)).ToArray();
-        var data = chartData.Select(d => d.Count).ToArray();
-        var colors = chartData.Select(d => GetActivityTypeColor(d.TypeId)).ToArray();
+    private async Task<(DateTime StartDate, DateTime EndDate)> GetDateRange()
+    {
+        var now = DateTime.Now;
         
-        if (chartInstance != null)
+        switch (selectedDuration)
         {
-            await JSRuntime.InvokeVoidAsync("chartHelper.destroyChart", chartInstance);
+            case DurationOption.Last24Hours:
+                var start24h = now.AddHours(-24);
+                var end24h = now;
+                return (start24h, end24h);
+            case DurationOption.Last7Days:
+                var start7d = now.AddDays(-7);
+                var end7d = now;
+                return (start7d, end7d);
+            case DurationOption.Week:
+                // Get the Monday of the week containing the current date
+                var daysToMonday = ((int)now.DayOfWeek - (int)DayOfWeek.Monday + 7) % 7;
+                var weekStart = now.AddDays(-daysToMonday).Date;
+                var weekEnd = weekStart.AddDays(6).Date.AddHours(23).AddMinutes(59).AddSeconds(59);
+                return (weekStart, weekEnd);
+            default:
+                return (DateTime.MinValue, DateTime.MaxValue);
         }
+    }
 
-        chartInstance = await JSRuntime.InvokeAsync<string>("chartHelper.createChart", "activityChart", "bar", labels, data, colors);
+    private async Task<List<Activity>> GetFilteredActivitiesAsync()
+    {
+        var (startDate, endDate) = await GetDateRange();
+        // Filter activities within the date range (inclusive)
+        var filtered = activities.Where(a => a.When >= startDate && a.When <= endDate).ToList();
+        return filtered;
+    }
+
+    private int? GetGoalAmount(ActivityType activityType)
+    {
+        return selectedDuration switch
+        {
+            DurationOption.Last24Hours => activityType.DailyAmount,
+            DurationOption.Last7Days => activityType.WeeklyAmount,
+            DurationOption.Week => activityType.WeeklyAmount,
+            _ => null
+        };
+    }
+
+    private async Task UpdateGoalDurationChart()
+    {
+        // Prevent concurrent chart updates
+        if (_isUpdatingChart)
+        {
+            return;
+        }
+        
+        _isUpdatingChart = true;
+        
+        try
+        {
+            // Destroy existing chart first
+            if (chartInstance != null)
+            {
+                await JSRuntime.InvokeVoidAsync("chartHelper.destroyChart", chartInstance);
+                chartInstance = null;
+                // Small delay to ensure chart is fully destroyed
+                await Task.Delay(100);
+            }
+
+            var filteredActivities = await GetFilteredActivitiesAsync();
+            
+            // Group activities by type and calculate totals
+            var activityData = filteredActivities
+                .GroupBy(a => a.ActivityTypeId)
+                .Select(g => new
+                {
+                    ActivityTypeId = g.Key,
+                    TotalAmount = g.Sum(a => a.Amount),
+                    ActivityType = activityTypes.FirstOrDefault(t => t.Id == g.Key)
+                })
+                .Where(x => x.ActivityType != null && x.ActivityType.NetBenefit != NetBenefit.None)
+                .ToList();
+
+            // Calculate percentages and filter out activities without goals
+            var chartData = new List<(string Label, double Percentage, NetBenefit NetBenefit)>();
+
+            foreach (var data in activityData)
+            {
+                var goalAmount = GetGoalAmount(data.ActivityType!);
+                if (goalAmount.HasValue && goalAmount.Value > 0)
+                {
+                    var percentage = (data.TotalAmount / (double)goalAmount.Value) * 100.0;
+                    chartData.Add((GetActivityTypeName(data.ActivityTypeId), percentage, data.ActivityType!.NetBenefit));
+                }
+            }
+
+            if (chartData.Count == 0)
+            {
+                // No data to display, chart already destroyed above
+                return;
+            }
+
+            // Find maximum percentage for y-axis scaling
+            var maxPercentage = chartData.Max(d => Math.Abs(d.Percentage));
+            if (maxPercentage < 100)
+            {
+                maxPercentage = 100; // Ensure minimum range of -100 to 100
+            }
+
+            var labels = chartData.Select(d => d.Label).ToArray();
+            var percentages = chartData.Select(d => d.Percentage).ToArray();
+            var netBenefits = chartData.Select(d => d.NetBenefit.ToString()).ToArray();
+
+            chartInstance = await JSRuntime.InvokeAsync<string>(
+                "chartHelper.createGoalDurationChart",
+                "goalDurationChart",
+                labels,
+                percentages,
+                netBenefits,
+                maxPercentage);
+        }
+        catch (Exception ex)
+        {
+            // Silently handle errors
+        }
+        finally
+        {
+            _isUpdatingChart = false;
+        }
     }
 
     private string GetActivityTypeName(int activityTypeId)
@@ -206,7 +347,6 @@
 
             await ExportImportService.ImportDataAsync(jsonData);
             await LoadData();
-            await UpdateChart();
             
             await JSRuntime.InvokeVoidAsync("alert", "Import successful!");
         }
