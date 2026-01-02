@@ -51,10 +51,10 @@ public class ActivityService : IActivityService
             activities = await _storageService.GetItemAsync<List<Activity>>(StorageKey) ?? new List<Activity>();
         }
 
-        // Update next ID based on existing items
-        if (activities.Any() && !_nextIdInitialized)
+        // Update next ID based on existing items (always check all activities, not just filtered results)
+        if (!_nextIdInitialized)
         {
-            // Need to check all activities to ensure we have the max ID
+            // Need to check all activities to ensure we have the max ID, regardless of the filtered result
             var allActivities = await _storageService.GetItemAsync<List<Activity>>(StorageKey) ?? new List<Activity>();
             if (allActivities.Any())
             {

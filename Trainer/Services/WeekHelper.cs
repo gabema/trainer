@@ -61,6 +61,8 @@ public static class WeekHelper
         var end = endDate.Date;
         var seenWeeks = new HashSet<string>();
 
+        // Iterate day-by-day to ensure we don't skip any weeks when dates are close together
+        // (e.g., Dec 31, 2025 to Jan 5, 2026 spans two weeks: 2025.53 and 2026.01)
         while (currentDate <= end)
         {
             var weekKey = GetWeekKey(currentDate);
@@ -68,7 +70,7 @@ public static class WeekHelper
             {
                 yield return weekKey;
             }
-            currentDate = currentDate.AddDays(7);
+            currentDate = currentDate.AddDays(1);
         }
     }
 
