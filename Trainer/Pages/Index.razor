@@ -103,7 +103,7 @@
 
     private async Task LoadData()
     {
-        activities = await ActivityService.GetAllAsync();
+        activities = await ActivityService.GetAllAsync(); // Loads all activities by default
         activityTypes = await ActivityTypeService.GetAllAsync();
         StateHasChanged();
     }

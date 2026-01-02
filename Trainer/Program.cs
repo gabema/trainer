@@ -10,7 +10,8 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
 
 // Register services
-builder.Services.AddScoped<IStorageService, LocalStorageService>();
+builder.Services.AddScoped<IndexedDbStorageService>();
+builder.Services.AddScoped<IStorageService>(sp => sp.GetRequiredService<IndexedDbStorageService>());
 builder.Services.AddScoped<IActivityService, ActivityService>();
 builder.Services.AddScoped<IActivityTypeService, ActivityTypeService>();
 builder.Services.AddScoped<IExportImportService, ExportImportService>();

@@ -4,7 +4,7 @@ namespace Trainer.Services;
 
 public interface IActivityService
 {
-    Task<List<Activity>> GetAllAsync();
+    Task<List<Activity>> GetAllAsync(DateTime? startDate = null, DateTime? endDate = null);
     Task<Activity?> GetByIdAsync(int id);
     Task<Activity> AddAsync(Activity activity);
     Task UpdateAsync(Activity activity);

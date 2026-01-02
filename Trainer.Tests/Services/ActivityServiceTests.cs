@@ -6,12 +6,12 @@ namespace Trainer.Tests.Services;
 
 public class ActivityServiceTests
 {
-    private readonly Mock<IStorageService> _storageServiceMock;
+    private readonly Mock<IndexedDbStorageService> _storageServiceMock;
     private readonly ActivityService _service;
 
     public ActivityServiceTests()
     {
-        _storageServiceMock = new Mock<IStorageService>();
+        _storageServiceMock = new Mock<IndexedDbStorageService>(Mock.Of<Microsoft.JSInterop.IJSRuntime>());
         _service = new ActivityService(_storageServiceMock.Object);
     }
 
@@ -41,6 +41,7 @@ public class ActivityServiceTests
             new() { Id = 2, ActivityTypeId = 2, When = DateTime.Now, Amount = 200, Notes = "Test 2" }
         };
 
+        // Set up mock directly on IndexedDbStorageService (which implements IStorageService)
         _storageServiceMock
             .Setup(x => x.GetItemAsync<List<Activity>>("activities"))
             .ReturnsAsync(activities);
@@ -102,14 +103,20 @@ public class ActivityServiceTests
         // Arrange
         var activities = new List<Activity>();
         var newActivity = new Activity { ActivityTypeId = 1, When = DateTime.Now, Amount = 100, Notes = "New" };
+        var weekKey = WeekHelper.GetWeekKey(newActivity.When);
 
         _storageServiceMock
             .Setup(x => x.GetItemAsync<List<Activity>>("activities"))
             .ReturnsAsync(activities);
 
         _storageServiceMock
-            .Setup(x => x.SetItemAsync("activities", It.IsAny<List<Activity>>()))
-            .Callback<string, List<Activity>>((key, list) => activities = list)
+            .Setup(x => x.GetActivitiesByWeekAsync(weekKey))
+            .ReturnsAsync(new List<Activity>());
+
+        var savedActivities = new List<Activity>();
+        _storageServiceMock
+            .Setup(x => x.SetActivitiesForWeekAsync(weekKey, It.IsAny<List<Activity>>()))
+            .Callback<string, List<Activity>>((wk, list) => { savedActivities.Clear(); savedActivities.AddRange(list); })
             .Returns(Task.CompletedTask);
 
         // Act
@@ -117,47 +124,56 @@ public class ActivityServiceTests
 
         // Assert
         Assert.True(result.Id > 0);
-        Assert.Single(activities);
-        _storageServiceMock.Verify(x => x.SetItemAsync("activities", It.IsAny<List<Activity>>()), Times.Once);
+        Assert.Single(savedActivities);
+        _storageServiceMock.Verify(x => x.SetActivitiesForWeekAsync(weekKey, It.IsAny<List<Activity>>()), Times.Once);
     }
 
     [Fact]
     public async Task UpdateAsync_UpdatesExistingActivity()
     {
         // Arrange
+        var testDate = DateTime.Now;
         var activities = new List<Activity>
         {
-            new() { Id = 1, ActivityTypeId = 1, When = DateTime.Now, Amount = 100, Notes = "Original" }
+            new() { Id = 1, ActivityTypeId = 1, When = testDate, Amount = 100, Notes = "Original" }
         };
+        var weekKey = WeekHelper.GetWeekKey(testDate);
+        var updatedActivity = new Activity { Id = 1, ActivityTypeId = 1, When = testDate, Amount = 200, Notes = "Updated" };
 
         _storageServiceMock
             .Setup(x => x.GetItemAsync<List<Activity>>("activities"))
             .ReturnsAsync(activities);
 
         _storageServiceMock
-            .Setup(x => x.SetItemAsync("activities", It.IsAny<List<Activity>>()))
-            .Callback<string, List<Activity>>((key, list) => activities = list)
-            .Returns(Task.CompletedTask);
+            .Setup(x => x.GetActivitiesByWeekAsync(weekKey))
+            .ReturnsAsync(activities);
 
-        var updatedActivity = new Activity { Id = 1, ActivityTypeId = 1, When = DateTime.Now, Amount = 200, Notes = "Updated" };
+        var savedActivities = new List<Activity>();
+        _storageServiceMock
+            .Setup(x => x.SetActivitiesForWeekAsync(weekKey, It.IsAny<List<Activity>>()))
+            .Callback<string, List<Activity>>((wk, list) => { savedActivities.Clear(); savedActivities.AddRange(list); })
+            .Returns(Task.CompletedTask);
 
         // Act
         await _service.UpdateAsync(updatedActivity);
 
         // Assert
-        Assert.Equal("Updated", activities[0].Notes);
-        Assert.Equal(200, activities[0].Amount);
-        _storageServiceMock.Verify(x => x.SetItemAsync("activities", It.IsAny<List<Activity>>()), Times.Once);
+        Assert.Single(savedActivities);
+        Assert.Equal("Updated", savedActivities[0].Notes);
+        Assert.Equal(200, savedActivities[0].Amount);
+        _storageServiceMock.Verify(x => x.SetActivitiesForWeekAsync(weekKey, It.IsAny<List<Activity>>()), Times.Once);
     }
 
     [Fact]
     public async Task DeleteAsync_RemovesActivity()
     {
         // Arrange
+        var testDate = DateTime.Now;
+        var weekKey = WeekHelper.GetWeekKey(testDate);
         var activities = new List<Activity>
         {
-            new() { Id = 1, ActivityTypeId = 1, When = DateTime.Now, Amount = 100, Notes = "Test 1" },
-            new() { Id = 2, ActivityTypeId = 2, When = DateTime.Now, Amount = 200, Notes = "Test 2" }
+            new() { Id = 1, ActivityTypeId = 1, When = testDate, Amount = 100, Notes = "Test 1" },
+            new() { Id = 2, ActivityTypeId = 2, When = testDate, Amount = 200, Notes = "Test 2" }
         };
 
         _storageServiceMock
@@ -165,17 +181,22 @@ public class ActivityServiceTests
             .ReturnsAsync(activities);
 
         _storageServiceMock
-            .Setup(x => x.SetItemAsync("activities", It.IsAny<List<Activity>>()))
-            .Callback<string, List<Activity>>((key, list) => activities = list)
+            .Setup(x => x.GetActivitiesByWeekAsync(weekKey))
+            .ReturnsAsync(activities);
+
+        var savedActivities = new List<Activity>();
+        _storageServiceMock
+            .Setup(x => x.SetActivitiesForWeekAsync(weekKey, It.IsAny<List<Activity>>()))
+            .Callback<string, List<Activity>>((wk, list) => { savedActivities.Clear(); savedActivities.AddRange(list); })
             .Returns(Task.CompletedTask);
 
         // Act
         await _service.DeleteAsync(1);
 
         // Assert
-        Assert.Single(activities);
-        Assert.Equal(2, activities.First().Id);
-        _storageServiceMock.Verify(x => x.SetItemAsync("activities", It.IsAny<List<Activity>>()), Times.Once);
+        Assert.Single(savedActivities);
+        Assert.Equal(2, savedActivities.First().Id);
+        _storageServiceMock.Verify(x => x.SetActivitiesForWeekAsync(weekKey, It.IsAny<List<Activity>>()), Times.Once);
     }
 
     [Fact]
