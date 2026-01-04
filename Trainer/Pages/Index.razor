@@ -71,7 +71,7 @@
                                 <div class="card activity-card mb-3" style="cursor: pointer;" @onclick="() => EditActivity(activity.Id)">
                                     <div class="card-header d-flex justify-content-between align-items-center">
                                         <span class="fw-semibold">@GetActivityTypeName(activity.ActivityTypeId)</span>
-                                        <span class="text-muted small">@FormatWhenDateTime(activity.When)</span>
+                                        <span class="text-muted small">@DateTimeHelper.FormatWhenDateTime(activity.When)</span>
                                     </div>
                                     <div class="card-body">
                                         <div class="mb-2">
@@ -286,36 +286,6 @@
         return activity.Amount.ToString();
     }
 
-    private string FormatWhenDateTime(DateTime when)
-    {
-        var now = DateTime.Now;
-        var timeDiff = now - when;
-
-        // Less than 2 hours ago: show "X minutes ago"
-        if (timeDiff.TotalMinutes < 120)
-        {
-            var minutes = (int)timeDiff.TotalMinutes;
-            return minutes <= 1 ? "1 minute ago" : $"{minutes} minutes ago";
-        }
-
-        // Check if same day
-        if (when.Date == now.Date)
-        {
-            // More than 2 hours ago but same day: show time only
-            return when.ToString("h:mm tt").ToLower();
-        }
-
-        // Check if yesterday
-        var yesterday = now.Date.AddDays(-1);
-        if (when.Date == yesterday)
-        {
-            // Yesterday: show "yesterday @ {time}"
-            return $"yesterday @ {when.ToString("h:mm tt").ToLower()}";
-        }
-
-        // More than yesterday ago: show short date and time
-        return $"{when.ToString("MMM d")} @ {when.ToString("h:mm tt").ToLower()}";
-    }
 
     private string GetActivityTypeColor(int activityTypeId)
     {
