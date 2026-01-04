@@ -54,6 +54,34 @@ public class ActivityTypeServiceTests
     }
 
     [Fact]
+    public async Task GetAllAsync_ReturnsActivityTypesSortedByName()
+    {
+        // Arrange
+        var types = new List<ActivityType>
+        {
+            new() { Id = 1, Name = "Zebra", NetBenefit = NetBenefit.Positive },
+            new() { Id = 2, Name = "Apple", NetBenefit = NetBenefit.Positive },
+            new() { Id = 3, Name = "Banana", NetBenefit = NetBenefit.Negative },
+            new() { Id = 4, Name = "Water", NetBenefit = NetBenefit.Positive }
+        };
+
+        _storageServiceMock
+            .Setup(x => x.GetItemAsync<List<ActivityType>>("activityTypes"))
+            .ReturnsAsync(types);
+
+        // Act
+        var result = await _service.GetAllAsync();
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(4, result.Count);
+        Assert.Equal("Apple", result[0].Name);
+        Assert.Equal("Banana", result[1].Name);
+        Assert.Equal("Water", result[2].Name);
+        Assert.Equal("Zebra", result[3].Name);
+    }
+
+    [Fact]
     public async Task GetByIdAsync_ReturnsActivityType_WhenExists()
     {
         // Arrange

@@ -23,7 +23,7 @@ public class ActivityTypeService : IActivityTypeService
             _nextId = types.Max(t => t.Id) + 1;
         }
         
-        return types;
+        return types.OrderBy(t => t.Name).ToList();
     }
 
     public async Task<ActivityType?> GetByIdAsync(int id)
