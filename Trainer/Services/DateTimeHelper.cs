@@ -17,6 +17,12 @@ public static class DateTimeHelper
         var currentTime = now ?? DateTime.Now;
         var timeDiff = currentTime - when;
 
+        // Handle future dates - always show short date and time format
+        if (when > currentTime)
+        {
+            return $"{when.ToString("MMM d")} @ {when.ToString("h:mm tt").ToLower()}";
+        }
+
         // Less than 2 hours ago: show "X minutes ago"
         if (timeDiff.TotalMinutes < 120)
         {
