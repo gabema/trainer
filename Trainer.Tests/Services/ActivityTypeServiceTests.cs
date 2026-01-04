@@ -54,6 +54,34 @@ public class ActivityTypeServiceTests
     }
 
     [Fact]
+    public async Task GetAllAsync_ReturnsActivityTypesSortedByName()
+    {
+        // Arrange
+        var types = new List<ActivityType>
+        {
+            new() { Id = 1, Name = "Zebra", NetBenefit = NetBenefit.Positive },
+            new() { Id = 2, Name = "Apple", NetBenefit = NetBenefit.Positive },
+            new() { Id = 3, Name = "Banana", NetBenefit = NetBenefit.Negative },
+            new() { Id = 4, Name = "Water", NetBenefit = NetBenefit.Positive }
+        };
+
+        _storageServiceMock
+            .Setup(x => x.GetItemAsync<List<ActivityType>>("activityTypes"))
+            .ReturnsAsync(types);
+
+        // Act
+        var result = await _service.GetAllAsync();
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(4, result.Count);
+        Assert.Equal("Apple", result[0].Name);
+        Assert.Equal("Banana", result[1].Name);
+        Assert.Equal("Water", result[2].Name);
+        Assert.Equal("Zebra", result[3].Name);
+    }
+
+    [Fact]
     public async Task GetByIdAsync_ReturnsActivityType_WhenExists()
     {
         // Arrange
@@ -175,6 +203,73 @@ public class ActivityTypeServiceTests
         Assert.Single(types);
         Assert.Equal(2, types.First().Id);
         _storageServiceMock.Verify(x => x.SetItemAsync("activityTypes", It.IsAny<List<ActivityType>>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task WriteOperations_PreserveStorageOrder_WhileGetAllAsyncReturnsSorted()
+    {
+        // Arrange - Start with unsorted data in storage
+        var types = new List<ActivityType>
+        {
+            new() { Id = 1, Name = "Zebra", NetBenefit = NetBenefit.Positive },
+            new() { Id = 2, Name = "Apple", NetBenefit = NetBenefit.Positive },
+            new() { Id = 3, Name = "Banana", NetBenefit = NetBenefit.Negative }
+        };
+
+        _storageServiceMock
+            .Setup(x => x.GetItemAsync<List<ActivityType>>("activityTypes"))
+            .ReturnsAsync(() => new List<ActivityType>(types));
+
+        _storageServiceMock
+            .Setup(x => x.SetItemAsync("activityTypes", It.IsAny<List<ActivityType>>()))
+            .Callback<string, List<ActivityType>>((key, list) => types = new List<ActivityType>(list))
+            .Returns(Task.CompletedTask);
+
+        // Act & Assert - Verify GetAllAsync returns sorted
+        var sortedResult = await _service.GetAllAsync();
+        Assert.Equal("Apple", sortedResult[0].Name);
+        Assert.Equal("Banana", sortedResult[1].Name);
+        Assert.Equal("Zebra", sortedResult[2].Name);
+
+        // Verify storage order is preserved (unsorted) by checking what was saved
+        Assert.Equal("Zebra", types[0].Name);
+        Assert.Equal("Apple", types[1].Name);
+        Assert.Equal("Banana", types[2].Name);
+
+        // Act - Add a new item
+        var newType = new ActivityType { Name = "Water", NetBenefit = NetBenefit.Positive };
+        await _service.AddAsync(newType);
+
+        // Assert - Storage order should be preserved (new item at end, not sorted)
+        Assert.Equal(4, types.Count);
+        Assert.Equal("Zebra", types[0].Name);
+        Assert.Equal("Apple", types[1].Name);
+        Assert.Equal("Banana", types[2].Name);
+        Assert.Equal("Water", types[3].Name);
+
+        // But GetAllAsync still returns sorted
+        sortedResult = await _service.GetAllAsync();
+        Assert.Equal("Apple", sortedResult[0].Name);
+        Assert.Equal("Banana", sortedResult[1].Name);
+        Assert.Equal("Water", sortedResult[2].Name);
+        Assert.Equal("Zebra", sortedResult[3].Name);
+
+        // Act - Update an item's name (which could change sort position)
+        var updatedType = new ActivityType { Id = 2, Name = "Aardvark", NetBenefit = NetBenefit.Positive };
+        await _service.UpdateAsync(updatedType);
+
+        // Assert - Storage order should still be preserved (item stays in same position)
+        Assert.Equal("Zebra", types[0].Name);
+        Assert.Equal("Aardvark", types[1].Name); // Updated in place
+        Assert.Equal("Banana", types[2].Name);
+        Assert.Equal("Water", types[3].Name);
+
+        // But GetAllAsync returns sorted with new name
+        sortedResult = await _service.GetAllAsync();
+        Assert.Equal("Aardvark", sortedResult[0].Name);
+        Assert.Equal("Banana", sortedResult[1].Name);
+        Assert.Equal("Water", sortedResult[2].Name);
+        Assert.Equal("Zebra", sortedResult[3].Name);
     }
 }
 
