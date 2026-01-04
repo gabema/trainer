@@ -41,6 +41,7 @@ jobs:
       run: |
         sed -i 's|<base href="/" />|<base href="/trainer/" />|g' ./publish/wwwroot/index.html
         sed -i 's|<base href="/" />|<base href="/trainer/" />|g' ./publish/wwwroot/404.html
+        sed -i 's|"start_url": "/"|"start_url": "/trainer/"|g' ./publish/wwwroot/manifest.json
     
     - name: Setup Pages
       uses: actions/configure-pages@v4
