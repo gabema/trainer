@@ -13,7 +13,7 @@ public class ActivityTypeService : IActivityTypeService
         _storageService = storageService;
     }
 
-    public async Task<List<ActivityType>> GetAllAsync()
+    private async Task<List<ActivityType>> GetAllUnsortedAsync()
     {
         var types = await _storageService.GetItemAsync<List<ActivityType>>(StorageKey) ?? new List<ActivityType>();
         
@@ -23,6 +23,12 @@ public class ActivityTypeService : IActivityTypeService
             _nextId = types.Max(t => t.Id) + 1;
         }
         
+        return types;
+    }
+
+    public async Task<List<ActivityType>> GetAllAsync()
+    {
+        var types = await GetAllUnsortedAsync();
         return types.OrderBy(t => t.Name).ToList();
     }
 
@@ -34,7 +40,7 @@ public class ActivityTypeService : IActivityTypeService
 
     public async Task<ActivityType> AddAsync(ActivityType activityType)
     {
-        var types = await GetAllAsync();
+        var types = await GetAllUnsortedAsync();
         activityType.Id = _nextId++;
         types.Add(activityType);
         await _storageService.SetItemAsync(StorageKey, types);
@@ -43,7 +49,7 @@ public class ActivityTypeService : IActivityTypeService
 
     public async Task UpdateAsync(ActivityType activityType)
     {
-        var types = await GetAllAsync();
+        var types = await GetAllUnsortedAsync();
         var index = types.FindIndex(t => t.Id == activityType.Id);
         if (index >= 0)
         {
@@ -54,7 +60,7 @@ public class ActivityTypeService : IActivityTypeService
 
     public async Task DeleteAsync(int id)
     {
-        var types = await GetAllAsync();
+        var types = await GetAllUnsortedAsync();
         types.RemoveAll(t => t.Id == id);
         await _storageService.SetItemAsync(StorageKey, types);
     }
