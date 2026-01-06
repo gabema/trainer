@@ -156,5 +156,10 @@ public class ActivityService : IActivityService
         var activities = await GetAllAsync();
         return activities.Where(a => a.ActivityTypeId == activityTypeId).ToList();
     }
+
+    public async Task<List<string>> GetAllAvailableWeekKeysAsync()
+    {
+        return await _storageService.GetAllAvailableWeekKeysAsync();
+    }
 }
 

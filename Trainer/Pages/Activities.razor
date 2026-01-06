@@ -104,6 +104,7 @@
     private string searchTerm = string.Empty;
     private DateFilterOption selectedDateFilter = DateFilterOption.AllTime;
     private HashSet<string> loadedWeekKeys = new();
+    private HashSet<string> availableWeekKeys = new();
     private bool isLoading = false;
     private bool hasMoreWeeksToLoad = true;
     private DotNetObjectReference<Activities>? objRef;
@@ -150,12 +151,21 @@
 
         try
         {
+            // Get all available week keys from IndexedDB
+            var allAvailableWeekKeys = await ActivityService.GetAllAvailableWeekKeysAsync();
+            availableWeekKeys = new HashSet<string>(allAvailableWeekKeys);
+            
             var (startDate, endDate) = GetDateFilterRange();
             
             if (startDate.HasValue && endDate.HasValue)
             {
-                // Date filter is active - load ALL weeks in the range
-                var weeksToLoad = WeekHelper.GetWeekKeysInRange(startDate.Value, endDate.Value)
+                // Date filter is active - load only weeks in the range that actually have data
+                var weeksInRange = WeekHelper.GetWeekKeysInRange(startDate.Value, endDate.Value)
+                    .ToHashSet();
+                
+                // Filter to only weeks that exist in IndexedDB and are in the date range
+                var weeksToLoad = availableWeekKeys
+                    .Where(wk => weeksInRange.Contains(wk))
                     .OrderByDescending(w => w)
                     .ToList();
                 
@@ -172,7 +182,7 @@
                     }
                 }
                 
-                // Mark as complete since we've loaded all weeks in the range
+                // Mark as complete since we've loaded all available weeks in the range
                 hasMoreWeeksToLoad = false;
                 
                 // Apply filters to update displayed activities
@@ -180,18 +190,37 @@
             }
             else
             {
-                // All time - load multiple weeks initially to increase chance of finding activities
-                // Continue loading until we find at least some activities or have loaded 8 weeks
+                // All time - load multiple weeks initially from available weeks
+                // Sort by most recent first and load up to 8 weeks initially
+                var sortedAvailableWeeks = availableWeekKeys
+                    .OrderByDescending(w => w)
+                    .ToList();
+                
                 int weeksLoaded = 0;
                 const int maxInitialWeeks = 8;
                 
-                while (weeksLoaded < maxInitialWeeks && hasMoreWeeksToLoad && displayedActivities.Count == 0)
+                foreach (var weekKey in sortedAvailableWeeks)
                 {
-                    var loaded = await LoadNextWeekInternal();
-                    if (!loaded)
+                    if (weeksLoaded >= maxInitialWeeks)
                         break;
-                    weeksLoaded++;
+                    
+                    if (!loadedWeekKeys.Contains(weekKey))
+                    {
+                        var weekStart = WeekHelper.GetWeekStartDate(weekKey);
+                        var weekEnd = WeekHelper.GetWeekEndDate(weekKey);
+                        var weekActivities = await ActivityService.GetAllAsync(weekStart, weekEnd);
+                        
+                        allLoadedActivities.AddRange(weekActivities);
+                        loadedWeekKeys.Add(weekKey);
+                        weeksLoaded++;
+                    }
                 }
+                
+                // Check if there are more weeks to load
+                hasMoreWeeksToLoad = loadedWeekKeys.Count < availableWeekKeys.Count;
+                
+                // Apply filters to update displayed activities
+                ApplyFilters();
             }
         }
         finally
@@ -231,20 +260,15 @@
 
         if (startDate.HasValue && endDate.HasValue)
         {
-            // Date filter is active - load weeks within the range
-            var weeksToLoad = WeekHelper.GetWeekKeysInRange(startDate.Value, endDate.Value)
+            // Date filter is active - load only weeks in the range that actually have data
+            var weeksInRange = WeekHelper.GetWeekKeysInRange(startDate.Value, endDate.Value)
+                .ToHashSet();
+            
+            // Find the next available week in the range that hasn't been loaded
+            nextWeekKey = availableWeekKeys
+                .Where(wk => weeksInRange.Contains(wk) && !loadedWeekKeys.Contains(wk))
                 .OrderByDescending(w => w)
-                .ToList();
-
-            // Find the next week to load (most recent week that hasn't been loaded)
-            foreach (var weekKey in weeksToLoad)
-            {
-                if (!loadedWeekKeys.Contains(weekKey))
-                {
-                    nextWeekKey = weekKey;
-                    break;
-                }
-            }
+                .FirstOrDefault();
 
             if (nextWeekKey == null)
             {
@@ -254,45 +278,18 @@
         }
         else
         {
-            // All time - load weeks going backwards from current week
-            var currentDate = DateTime.Now;
-            var currentWeekKey = WeekHelper.GetWeekKey(currentDate);
-            
-            if (loadedWeekKeys.Count == 0)
-            {
-                // Load current week first
-                nextWeekKey = currentWeekKey;
-            }
-            else
-            {
-                // Find the most recent loaded week and go back one week
-                var mostRecentWeekKey = loadedWeekKeys.OrderByDescending(w => w).FirstOrDefault();
-                if (mostRecentWeekKey != null)
-                {
-                    var mostRecentWeekStart = WeekHelper.GetWeekStartDate(mostRecentWeekKey);
-                    var previousWeekStart = mostRecentWeekStart.AddDays(-7);
-                    var previousWeekKey = WeekHelper.GetWeekKey(previousWeekStart);
-                    
-                    // Stop if we've gone back more than 2 years (104 weeks)
-                    if (loadedWeekKeys.Count >= 104)
-                    {
-                        hasMoreWeeksToLoad = false;
-                        return false;
-                    }
-                    
-                    nextWeekKey = previousWeekKey;
-                }
-                else
-                {
-                    nextWeekKey = currentWeekKey;
-                }
-            }
-        }
+            // All time - load next available week (most recent that hasn't been loaded)
+            nextWeekKey = availableWeekKeys
+                .Where(wk => !loadedWeekKeys.Contains(wk))
+                .OrderByDescending(w => w)
+                .FirstOrDefault();
 
-        if (nextWeekKey == null)
-        {
-            hasMoreWeeksToLoad = false;
-            return false;
+            if (nextWeekKey == null)
+            {
+                // No more available weeks to load
+                hasMoreWeeksToLoad = false;
+                return false;
+            }
         }
 
         // Load activities for this week
@@ -303,6 +300,19 @@
         // Add to loaded activities
         allLoadedActivities.AddRange(weekActivities);
         loadedWeekKeys.Add(nextWeekKey);
+
+        // Check if there are more weeks to load
+        if (startDate.HasValue && endDate.HasValue)
+        {
+            // For date filters, check if there are more weeks in range
+            var weeksInRange = WeekHelper.GetWeekKeysInRange(startDate.Value, endDate.Value).ToHashSet();
+            hasMoreWeeksToLoad = availableWeekKeys.Any(wk => weeksInRange.Contains(wk) && !loadedWeekKeys.Contains(wk));
+        }
+        else
+        {
+            // For all time, check if there are more available weeks
+            hasMoreWeeksToLoad = availableWeekKeys.Any(wk => !loadedWeekKeys.Contains(wk));
+        }
 
         // Apply search filter and update displayed activities
         ApplyFilters();
@@ -406,6 +416,7 @@
         // Reset loaded weeks when filter changes
         allLoadedActivities.Clear();
         loadedWeekKeys.Clear();
+        availableWeekKeys.Clear(); // Clear cache to refresh available weeks
         hasMoreWeeksToLoad = true;
         
         await LoadInitialWeeks();
