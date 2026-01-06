@@ -1,0 +1,459 @@
+@page "/activities"
+@using Microsoft.AspNetCore.Components
+@using Microsoft.JSInterop
+@inject IActivityService ActivityService
+@inject IActivityTypeService ActivityTypeService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@implements IAsyncDisposable
+
+<PageTitle>Activities - Trainer</PageTitle>
+
+<div class="header-area">
+    <div class="d-flex align-items-center">
+        <button class="btn btn-link p-0 me-3" @onclick="GoBack" style="text-decoration: none; color: inherit;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+                <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/>
+            </svg>
+        </button>
+        <h1 class="mb-0">Activities</h1>
+    </div>
+</div>
+
+<div class="container mt-4">
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Search</label>
+                            <input type="text" class="form-control" value="@searchTerm" @oninput="OnSearchTermChanged" placeholder="Search activities..." />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Date Duration</label>
+                            <select class="form-select" value="@((int)selectedDateFilter)" @onchange="OnDateFilterChanged">
+                                <option value="@((int)DateFilterOption.AllTime)">All time</option>
+                                <option value="@((int)DateFilterOption.Last24Hours)">Last 24 hours</option>
+                                <option value="@((int)DateFilterOption.CurrentWeek)">Current Week</option>
+                                <option value="@((int)DateFilterOption.Last7Days)">Last 7 days</option>
+                                <option value="@((int)DateFilterOption.Last4Weeks)">Last 4 Weeks</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <button class="btn btn-primary" @onclick="AddNewActivity">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="me-1">
+                                <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
+                            </svg>
+                            Add New Activity
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    @if (displayedActivities.Any())
+                    {
+                        <div class="activity-cards-container">
+                            @foreach (var activity in displayedActivities)
+                            {
+                                <ActivityCard Activity="@activity" ActivityTypes="@activityTypes" />
+                            }
+                            @if (hasMoreWeeksToLoad)
+                            {
+                                <div id="scroll-trigger" style="height: 20px;"></div>
+                            }
+                            @if (isLoading)
+                            {
+                                <div class="text-center py-3">
+                                    <div class="spinner-border spinner-border-sm" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else if (isLoading)
+                    {
+                        <div class="text-center py-5">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted">No activities found. @if (!string.IsNullOrWhiteSpace(searchTerm) || selectedDateFilter != DateFilterOption.AllTime) { <text>Try adjusting your search or filters.</text> } else { <text>Click "Add New Activity" to get started.</text> }</p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Activity> allLoadedActivities = new();
+    private List<Activity> displayedActivities = new();
+    private List<ActivityType> activityTypes = new();
+    private string searchTerm = string.Empty;
+    private DateFilterOption selectedDateFilter = DateFilterOption.AllTime;
+    private HashSet<string> loadedWeekKeys = new();
+    private HashSet<string> availableWeekKeys = new();
+    private bool isLoading = false;
+    private bool hasMoreWeeksToLoad = true;
+    private DotNetObjectReference<Activities>? objRef;
+    private IJSObjectReference? infiniteScrollModule;
+
+    private enum DateFilterOption
+    {
+        AllTime,
+        Last24Hours,
+        CurrentWeek,
+        Last7Days,
+        Last4Weeks
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            objRef = DotNetObjectReference.Create(this);
+            try
+            {
+                infiniteScrollModule = await JSRuntime.InvokeAsync<IJSObjectReference>("import", "/js/infinite-scroll.js");
+                await infiniteScrollModule.InvokeVoidAsync("initializeObserver", objRef, "scroll-trigger");
+            }
+            catch
+            {
+                // JavaScript module not loaded yet, will retry
+            }
+            
+            await LoadActivityTypes();
+            await LoadInitialWeeks();
+        }
+    }
+
+    private async Task LoadActivityTypes()
+    {
+        activityTypes = await ActivityTypeService.GetAllAsync();
+    }
+
+    private async Task LoadInitialWeeks()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            // Get all available week keys from IndexedDB
+            var allAvailableWeekKeys = await ActivityService.GetAllAvailableWeekKeysAsync();
+            availableWeekKeys = new HashSet<string>(allAvailableWeekKeys);
+            
+            var (startDate, endDate) = GetDateFilterRange();
+            
+            if (startDate.HasValue && endDate.HasValue)
+            {
+                // Date filter is active - load only weeks in the range that actually have data
+                var weeksInRange = WeekHelper.GetWeekKeysInRange(startDate.Value, endDate.Value)
+                    .ToHashSet();
+                
+                // Filter to only weeks that exist in IndexedDB and are in the date range
+                var weeksToLoad = availableWeekKeys
+                    .Where(wk => weeksInRange.Contains(wk))
+                    .OrderByDescending(w => w)
+                    .ToList();
+                
+                foreach (var weekKey in weeksToLoad)
+                {
+                    if (!loadedWeekKeys.Contains(weekKey))
+                    {
+                        var weekStart = WeekHelper.GetWeekStartDate(weekKey);
+                        var weekEnd = WeekHelper.GetWeekEndDate(weekKey);
+                        var weekActivities = await ActivityService.GetAllAsync(weekStart, weekEnd);
+                        
+                        allLoadedActivities.AddRange(weekActivities);
+                        loadedWeekKeys.Add(weekKey);
+                    }
+                }
+                
+                // Mark as complete since we've loaded all available weeks in the range
+                hasMoreWeeksToLoad = false;
+                
+                // Apply filters to update displayed activities
+                ApplyFilters();
+            }
+            else
+            {
+                // All time - load multiple weeks initially from available weeks
+                // Sort by most recent first and load up to 8 weeks initially
+                var sortedAvailableWeeks = availableWeekKeys
+                    .OrderByDescending(w => w)
+                    .ToList();
+                
+                int weeksLoaded = 0;
+                const int maxInitialWeeks = 8;
+                
+                foreach (var weekKey in sortedAvailableWeeks)
+                {
+                    if (weeksLoaded >= maxInitialWeeks)
+                        break;
+                    
+                    if (!loadedWeekKeys.Contains(weekKey))
+                    {
+                        var weekStart = WeekHelper.GetWeekStartDate(weekKey);
+                        var weekEnd = WeekHelper.GetWeekEndDate(weekKey);
+                        var weekActivities = await ActivityService.GetAllAsync(weekStart, weekEnd);
+                        
+                        allLoadedActivities.AddRange(weekActivities);
+                        loadedWeekKeys.Add(weekKey);
+                        weeksLoaded++;
+                    }
+                }
+                
+                // Check if there are more weeks to load
+                hasMoreWeeksToLoad = loadedWeekKeys.Count < availableWeekKeys.Count;
+                
+                // Apply filters to update displayed activities
+                ApplyFilters();
+            }
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+            await SetupScrollObserver();
+        }
+    }
+
+    private async Task LoadNextWeek()
+    {
+        if (isLoading || !hasMoreWeeksToLoad)
+            return;
+
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            await LoadNextWeekInternal();
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task<bool> LoadNextWeekInternal()
+    {
+        if (!hasMoreWeeksToLoad)
+            return false;
+
+        var (startDate, endDate) = GetDateFilterRange();
+        string? nextWeekKey = null;
+
+        if (startDate.HasValue && endDate.HasValue)
+        {
+            // Date filter is active - load only weeks in the range that actually have data
+            var weeksInRange = WeekHelper.GetWeekKeysInRange(startDate.Value, endDate.Value)
+                .ToHashSet();
+            
+            // Find the next available week in the range that hasn't been loaded
+            nextWeekKey = availableWeekKeys
+                .Where(wk => weeksInRange.Contains(wk) && !loadedWeekKeys.Contains(wk))
+                .OrderByDescending(w => w)
+                .FirstOrDefault();
+
+            if (nextWeekKey == null)
+            {
+                hasMoreWeeksToLoad = false;
+                return false;
+            }
+        }
+        else
+        {
+            // All time - load next available week (most recent that hasn't been loaded)
+            nextWeekKey = availableWeekKeys
+                .Where(wk => !loadedWeekKeys.Contains(wk))
+                .OrderByDescending(w => w)
+                .FirstOrDefault();
+
+            if (nextWeekKey == null)
+            {
+                // No more available weeks to load
+                hasMoreWeeksToLoad = false;
+                return false;
+            }
+        }
+
+        // Load activities for this week
+        var weekStart = WeekHelper.GetWeekStartDate(nextWeekKey);
+        var weekEnd = WeekHelper.GetWeekEndDate(nextWeekKey);
+        var weekActivities = await ActivityService.GetAllAsync(weekStart, weekEnd);
+
+        // Add to loaded activities
+        allLoadedActivities.AddRange(weekActivities);
+        loadedWeekKeys.Add(nextWeekKey);
+
+        // Check if there are more weeks to load
+        if (startDate.HasValue && endDate.HasValue)
+        {
+            // For date filters, check if there are more weeks in range
+            var weeksInRange = WeekHelper.GetWeekKeysInRange(startDate.Value, endDate.Value).ToHashSet();
+            hasMoreWeeksToLoad = availableWeekKeys.Any(wk => weeksInRange.Contains(wk) && !loadedWeekKeys.Contains(wk));
+        }
+        else
+        {
+            // For all time, check if there are more available weeks
+            hasMoreWeeksToLoad = availableWeekKeys.Any(wk => !loadedWeekKeys.Contains(wk));
+        }
+
+        // Apply search filter and update displayed activities
+        ApplyFilters();
+        
+        return true;
+    }
+
+
+    private (DateTime? StartDate, DateTime? EndDate) GetDateFilterRange()
+    {
+        var now = DateTime.Now;
+        
+        switch (selectedDateFilter)
+        {
+            case DateFilterOption.Last24Hours:
+                return (now.AddHours(-24), now);
+            case DateFilterOption.CurrentWeek:
+                var daysToMonday = ((int)now.DayOfWeek - (int)DayOfWeek.Monday + 7) % 7;
+                var currentWeekStart = now.AddDays(-daysToMonday).Date;
+                var currentWeekEnd = currentWeekStart.AddDays(6).Date.AddHours(23).AddMinutes(59).AddSeconds(59);
+                return (currentWeekStart, currentWeekEnd);
+            case DateFilterOption.Last7Days:
+                return (now.AddDays(-7), now);
+            case DateFilterOption.Last4Weeks:
+                return (now.AddDays(-28), now);
+            default:
+                return (null, null); // All time
+        }
+    }
+
+    private void ApplyFilters()
+    {
+        var filtered = allLoadedActivities.AsEnumerable();
+
+        // Apply date filter
+        if (selectedDateFilter != DateFilterOption.AllTime)
+        {
+            var (startDate, endDate) = GetDateFilterRange();
+            if (startDate.HasValue && endDate.HasValue)
+            {
+                filtered = filtered.Where(a => a.When >= startDate.Value && a.When <= endDate.Value);
+            }
+        }
+
+        // Apply search filter
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            var searchLower = searchTerm.ToLowerInvariant();
+            filtered = filtered.Where(a =>
+            {
+                var activityType = activityTypes.FirstOrDefault(t => t.Id == a.ActivityTypeId);
+                var typeName = activityType?.Name ?? "";
+                return typeName.ToLowerInvariant().Contains(searchLower) ||
+                       a.Notes.ToLowerInvariant().Contains(searchLower) ||
+                       a.Amount.ToString().Contains(searchLower);
+            });
+        }
+
+        displayedActivities = filtered.OrderByDescending(a => a.When).ToList();
+    }
+
+    [JSInvokable]
+    public async Task OnScrollTriggerVisible()
+    {
+        if (!isLoading && hasMoreWeeksToLoad)
+        {
+            await LoadNextWeek();
+        }
+    }
+
+    private async Task SetupScrollObserver()
+    {
+        if (infiniteScrollModule != null && hasMoreWeeksToLoad)
+        {
+            try
+            {
+                await Task.Delay(100); // Small delay to ensure DOM is updated
+                await infiniteScrollModule.InvokeVoidAsync("observeElement", "scroll-trigger");
+            }
+            catch
+            {
+                // Ignore errors
+            }
+        }
+    }
+
+    private async Task OnSearchTermChanged(ChangeEventArgs e)
+    {
+        searchTerm = e.Value?.ToString() ?? string.Empty;
+        ApplyFilters();
+        StateHasChanged();
+    }
+
+    private async Task OnDateFilterChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var filterInt) && Enum.IsDefined(typeof(DateFilterOption), filterInt))
+        {
+            selectedDateFilter = (DateFilterOption)filterInt;
+        }
+        
+        // Reset loaded weeks when filter changes
+        allLoadedActivities.Clear();
+        loadedWeekKeys.Clear();
+        availableWeekKeys.Clear(); // Clear cache to refresh available weeks
+        hasMoreWeeksToLoad = true;
+        
+        await LoadInitialWeeks();
+    }
+
+    private string GetNavigationPath(string path)
+    {
+        var baseUri = Navigation.BaseUri.TrimEnd('/');
+        var normalizedPath = path.TrimStart('/');
+        var fullPath = $"{baseUri}/{normalizedPath}";
+        return fullPath;
+    }
+
+    private void AddNewActivity()
+    {
+        Navigation.NavigateTo(GetNavigationPath("/activity"));
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo(GetNavigationPath("/"));
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (infiniteScrollModule != null)
+        {
+            try
+            {
+                await infiniteScrollModule.InvokeVoidAsync("dispose");
+                await infiniteScrollModule.DisposeAsync();
+            }
+            catch
+            {
+                // Ignore disposal errors
+            }
+        }
+        objRef?.Dispose();
+    }
+}

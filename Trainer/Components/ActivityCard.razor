@@ -1,0 +1,50 @@
+@inject NavigationManager Navigation
+@inject IActivityTypeService ActivityTypeService
+
+<div class="card activity-card mb-3" style="cursor: pointer;" @onclick="() => OnActivityClick()">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">@GetActivityTypeName()</span>
+        <span class="text-muted small">@DateTimeHelper.FormatWhenDateTime(Activity.When)</span>
+    </div>
+    <div class="card-body">
+        <div class="mb-2">
+            <strong>@GetAmountDisplay()</strong>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(Activity.Notes))
+        {
+            <div class="activity-notes">@Activity.Notes</div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public Activity Activity { get; set; } = null!;
+
+    [Parameter]
+    public List<ActivityType> ActivityTypes { get; set; } = new();
+
+    private string GetActivityTypeName()
+    {
+        return ActivityTypes.FirstOrDefault(t => t.Id == Activity.ActivityTypeId)?.Name ?? "Unknown";
+    }
+
+    private string GetAmountDisplay()
+    {
+        var activityType = ActivityTypes.FirstOrDefault(t => t.Id == Activity.ActivityTypeId);
+        if (activityType?.Unit != null)
+        {
+            return $"{Activity.Amount} {activityType.Unit}";
+        }
+        return Activity.Amount.ToString();
+    }
+
+    private void OnActivityClick()
+    {
+        var baseUri = Navigation.BaseUri.TrimEnd('/');
+        var normalizedPath = $"/activity/{Activity.Id}".TrimStart('/');
+        var fullPath = $"{baseUri}/{normalizedPath}";
+        Navigation.NavigateTo(fullPath);
+    }
+}
+

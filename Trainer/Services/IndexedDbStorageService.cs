@@ -311,5 +311,34 @@ public class IndexedDbStorageService : IStorageService
         var storageKey = WeekHelper.GetStorageKey(weekKey);
         await _jsRuntime.InvokeVoidAsync("indexedDbStorage.removeItem", storageKey);
     }
+
+    /// <summary>
+    /// Gets all available week keys that have activities stored in IndexedDB
+    /// </summary>
+    public virtual async Task<List<string>> GetAllAvailableWeekKeysAsync()
+    {
+        await EnsureInitializedAsync();
+        try
+        {
+            // Get all keys with activities- prefix
+            var storageKeys = await _jsRuntime.InvokeAsync<string[]>("indexedDbStorage.getAllKeysWithPrefix", "activities-");
+            
+            if (storageKeys == null || storageKeys.Length == 0)
+                return new List<string>();
+
+            // Extract week keys from storage keys (remove "activities-" prefix)
+            var weekKeys = storageKeys
+                .Select(WeekHelper.ExtractWeekKey)
+                .Where(wk => !string.IsNullOrEmpty(wk))
+                .ToList();
+
+            return weekKeys;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"GetAllAvailableWeekKeysAsync error: {ex.Message}");
+            return new List<string>();
+        }
+    }
 }
 
