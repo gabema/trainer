@@ -63,10 +63,10 @@
                     </div>
                 </div>
                 <div class="card-body">
-                    @if (activities.Any())
+                    @if (GetFilteredActivitiesForDisplay().Any())
                     {
                         <div class="activity-cards-container">
-                            @foreach (var activity in activities.OrderByDescending(a => a.When))
+                            @foreach (var activity in GetFilteredActivitiesForDisplay())
                             {
                                 <ActivityCard Activity="@activity" ActivityTypes="@activityTypes" />
                             }
@@ -130,7 +130,7 @@
         await UpdateGoalDurationChart();
     }
 
-    private async Task<(DateTime StartDate, DateTime EndDate)> GetDateRange()
+    private (DateTime StartDate, DateTime EndDate) GetDateRange()
     {
         var now = DateTime.Now;
         
@@ -157,9 +157,19 @@
 
     private async Task<List<Activity>> GetFilteredActivitiesAsync()
     {
-        var (startDate, endDate) = await GetDateRange();
+        var (startDate, endDate) = GetDateRange();
         // Filter activities within the date range (inclusive)
         var filtered = activities.Where(a => a.When >= startDate && a.When <= endDate).ToList();
+        return filtered;
+    }
+
+    private List<Activity> GetFilteredActivitiesForDisplay()
+    {
+        var (startDate, endDate) = GetDateRange();
+        // Filter activities within the date range (inclusive)
+        var filtered = activities.Where(a => a.When >= startDate && a.When <= endDate)
+            .OrderByDescending(a => a.When)
+            .ToList();
         return filtered;
     }
 
