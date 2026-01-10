@@ -2,22 +2,12 @@ using Trainer.Models;
 
 namespace Trainer.Services;
 
-public class ActivityService : IActivityService
+public class ActivityService(IStorageService storageService) : IActivityService
 {
-    private readonly IndexedDbStorageService _storageService;
+    private readonly IndexedDbStorageService _storageService = storageService as IndexedDbStorageService ?? throw new InvalidOperationException("ActivityService requires IndexedDbStorageService");
     private const string StorageKey = "activities";
     private int _nextId = 1;
     private bool _nextIdInitialized = false;
-
-    public ActivityService(IStorageService storageService)
-    {
-        // Cast to IndexedDbStorageService for weekly operations
-        if (storageService is not IndexedDbStorageService indexedDbService)
-        {
-            throw new InvalidOperationException("ActivityService requires IndexedDbStorageService");
-        }
-        _storageService = indexedDbService;
-    }
 
     private async Task EnsureNextIdInitializedAsync()
     {

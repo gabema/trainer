@@ -3,20 +3,14 @@ using System.Text.Json;
 
 namespace Trainer.Services;
 
-public class LocalStorageService : IStorageService
+public class LocalStorageService(IJSRuntime jsRuntime) : IStorageService
 {
-    private readonly IJSRuntime _jsRuntime;
-    private readonly JsonSerializerOptions _jsonOptions;
-
-    public LocalStorageService(IJSRuntime jsRuntime)
+    private readonly IJSRuntime _jsRuntime = jsRuntime;
+    private readonly JsonSerializerOptions _jsonOptions = new()
     {
-        _jsRuntime = jsRuntime;
-        _jsonOptions = new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            WriteIndented = false
-        };
-    }
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        WriteIndented = false
+    };
 
     public async Task<T?> GetItemAsync<T>(string key)
     {

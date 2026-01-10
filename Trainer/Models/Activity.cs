@@ -1,6 +1,6 @@
 namespace Trainer.Models;
 
-public class Activity
+public record Activity
 {
     public int Id { get; set; }
     public int ActivityTypeId { get; set; }

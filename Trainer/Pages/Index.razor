@@ -245,12 +245,12 @@
                 maxPercentage = 100; // Ensure minimum range of -100 to 100
             }
 
-            var labels = chartData.Select(d => d.Label).ToArray();
-            var percentages = chartData.Select(d => d.Percentage).ToArray();
-            var netBenefits = chartData.Select(d => d.NetBenefit.ToString()).ToArray();
+            string[]? labels = [ ..chartData.Select(d => d.Label)];
+            double[]? percentages = [ ..chartData.Select(d => d.Percentage)];
+            string[]? netBenefits = [ ..chartData.Select(d => d.NetBenefit.ToString())];
 
             chartInstance = await JSRuntime.InvokeAsync<string>(
-                "chartHelper.createGoalDurationChart",
+                identifier: "chartHelper.createGoalDurationChart",
                 "goalDurationChart",
                 labels,
                 percentages,
