@@ -3,23 +3,17 @@ using System.Text.Json;
 
 namespace Trainer.Services;
 
-public class IndexedDbStorageService : IStorageService
+public class IndexedDbStorageService(IJSRuntime jsRuntime) : IStorageService
 {
-    private readonly IJSRuntime _jsRuntime;
-    private readonly JsonSerializerOptions _jsonOptions;
+    private readonly IJSRuntime _jsRuntime = jsRuntime;
+    private readonly JsonSerializerOptions _jsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        WriteIndented = false
+    };
     private bool _isInitialized = false;
     private readonly SemaphoreSlim _initSemaphore = new(1, 1);
     private const string ActivitiesKey = "activities";
-
-    public IndexedDbStorageService(IJSRuntime jsRuntime)
-    {
-        _jsRuntime = jsRuntime;
-        _jsonOptions = new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            WriteIndented = false
-        };
-    }
 
     private async Task EnsureInitializedAsync()
     {
@@ -269,7 +263,7 @@ public class IndexedDbStorageService : IStorageService
     public virtual async Task<List<Models.Activity>> GetActivitiesByWeekRangeAsync(IEnumerable<string> weekKeys)
     {
         await EnsureInitializedAsync();
-        var storageKeys = weekKeys.Select(WeekHelper.GetStorageKey).ToArray();
+        string[] storageKeys = [ .. weekKeys.Select(WeekHelper.GetStorageKey)];
         // Serialize keys array to JSON to ensure it's passed correctly to JavaScript
         var keysJson = JsonSerializer.Serialize(storageKeys, _jsonOptions);
         var itemsJson = await _jsRuntime.InvokeAsync<string>("indexedDbStorage.getItems", keysJson);

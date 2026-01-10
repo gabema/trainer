@@ -2,16 +2,11 @@ using Trainer.Models;
 
 namespace Trainer.Services;
 
-public class ActivityTypeService : IActivityTypeService
+public class ActivityTypeService(IStorageService storageService) : IActivityTypeService
 {
-    private readonly IStorageService _storageService;
+    private readonly IStorageService _storageService = storageService;
     private const string StorageKey = "activityTypes";
     private int _nextId = 1;
-
-    public ActivityTypeService(IStorageService storageService)
-    {
-        _storageService = storageService;
-    }
 
     private async Task<List<ActivityType>> GetAllUnsortedAsync()
     {

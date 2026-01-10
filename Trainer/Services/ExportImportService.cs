@@ -3,20 +3,14 @@ using Trainer.Models;
 
 namespace Trainer.Services;
 
-public class ExportImportService : IExportImportService
+public class ExportImportService(IStorageService storageService) : IExportImportService
 {
-    private readonly IStorageService _storageService;
-    private readonly JsonSerializerOptions _jsonOptions;
-
-    public ExportImportService(IStorageService storageService)
+    private readonly IStorageService _storageService = storageService;
+    private readonly JsonSerializerOptions _jsonOptions = new()
     {
-        _storageService = storageService;
-        _jsonOptions = new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            WriteIndented = true
-        };
-    }
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        WriteIndented = true
+    };
 
     public async Task<string> ExportDataAsync()
     {

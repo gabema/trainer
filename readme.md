@@ -15,7 +15,7 @@ The progressive web app is installable on modern iOS and Android devices without
     1. Installable on Android, iOS, Windows, and other OSes that support installable progressive web apps.
     1. Fully functional while offline.
     1. Utilizies browser storage
-1. Implemented in .NET 8 and targets web assembly output
+1. Implemented in .NET 10 and targets web assembly output
 1. Code should be greater than 90% unit tested
 1. Includes github actions that can run the unit tests on pull requests
 1. includes a github action that can build and deploy releases to the github action page.
