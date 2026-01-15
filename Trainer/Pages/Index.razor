@@ -68,7 +68,7 @@
                         <div class="activity-cards-container">
                             @foreach (var activity in GetFilteredActivitiesForDisplay())
                             {
-                                <ActivityCard Activity="@activity" ActivityTypes="@activityTypes" />
+                                <ActivityCard Activity="@activity" ActivityTypes="@activityTypes" OnActivityDeleted="HandleActivityDeleted" />
                             }
                         </div>
                     }
@@ -128,6 +128,11 @@
         // Small delay to ensure UI is updated before chart update
         await Task.Delay(50);
         await UpdateGoalDurationChart();
+    }
+
+    private async Task HandleActivityDeleted()
+    {
+        await LoadData();
     }
 
     private (DateTime StartDate, DateTime EndDate) GetDateRange()
