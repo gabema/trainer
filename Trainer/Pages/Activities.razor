@@ -63,7 +63,7 @@
                         <div class="activity-cards-container">
                             @foreach (var activity in displayedActivities)
                             {
-                                <ActivityCard Activity="@activity" ActivityTypes="@activityTypes" />
+                                <ActivityCard Activity="@activity" ActivityTypes="@activityTypes" OnActivityDeleted="HandleActivityDeleted" />
                             }
                             @if (hasMoreWeeksToLoad)
                             {
@@ -438,6 +438,16 @@
     private void GoBack()
     {
         Navigation.NavigateTo(GetNavigationPath("/"));
+    }
+
+    private async Task HandleActivityDeleted()
+    {
+        // Reload activities after deletion
+        allLoadedActivities.Clear();
+        loadedWeekKeys.Clear();
+        availableWeekKeys.Clear();
+        hasMoreWeeksToLoad = true;
+        await LoadInitialWeeks();
     }
 
     public async ValueTask DisposeAsync()
