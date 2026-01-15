@@ -20,7 +20,7 @@
     
     @if (showOverlay)
     {
-        <div class="activity-card-overlay-backdrop" @onclick="() => CloseOverlay()"></div>
+        <div class="activity-card-overlay-backdrop" @onclick="() => CloseOverlay()" @onclick:stopPropagation="true"></div>
         <div class="activity-card-overlay" @onclick:stopPropagation="true">
             <div class="activity-card-overlay-actions">
                 <button class="btn btn-primary activity-card-overlay-button" @onclick="() => HandleEdit()" title="Edit">
@@ -49,7 +49,7 @@
     
     @if (showDeleteConfirmation)
     {
-        <div class="activity-card-overlay-backdrop" @onclick="() => CancelDelete()"></div>
+        <div class="activity-card-overlay-backdrop" @onclick="() => CancelDelete()" @onclick:stopPropagation="true"></div>
         <div class="activity-card-delete-confirmation" @onclick:stopPropagation="true">
             <div class="card">
                 <div class="card-header">
