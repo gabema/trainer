@@ -105,6 +105,37 @@
                 activity = existingActivity;
             }
         }
+        else
+        {
+            // Check for duplicate parameter
+            var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+            if (!string.IsNullOrEmpty(uri.Query))
+            {
+                var queryString = uri.Query.TrimStart('?');
+                var queryParams = queryString.Split('&')
+                    .Select(p => p.Split('='))
+                    .Where(p => p.Length == 2)
+                    .ToDictionary(p => Uri.UnescapeDataString(p[0]), p => Uri.UnescapeDataString(p[1]));
+                
+                if (queryParams.TryGetValue("duplicateFrom", out var duplicateFromValue) && 
+                    int.TryParse(duplicateFromValue, out var duplicateFromId))
+                {
+                    var sourceActivity = await ActivityService.GetByIdAsync(duplicateFromId);
+                    if (sourceActivity != null)
+                    {
+                        // Create a new activity with the same data but Id = 0
+                        activity = new Activity
+                        {
+                            Id = 0,
+                            ActivityTypeId = sourceActivity.ActivityTypeId,
+                            When = sourceActivity.When,
+                            Amount = sourceActivity.Amount,
+                            Notes = sourceActivity.Notes
+                        };
+                    }
+                }
+            }
+        }
         
         UpdateSelectedActivityType();
     }

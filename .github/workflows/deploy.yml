@@ -23,7 +23,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: '8.0.x'
+        dotnet-version: '10.0.x'
     
     - name: Restore dependencies
       run: dotnet restore
@@ -41,6 +41,7 @@ jobs:
       run: |
         sed -i 's|<base href="/" />|<base href="/trainer/" />|g' ./publish/wwwroot/index.html
         sed -i 's|<base href="/" />|<base href="/trainer/" />|g' ./publish/wwwroot/404.html
+        sed -i 's|"start_url": "/"|"start_url": "/trainer/"|g' ./publish/wwwroot/manifest.json
     
     - name: Setup Pages
       uses: actions/configure-pages@v4
