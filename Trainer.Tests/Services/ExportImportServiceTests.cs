@@ -8,12 +8,14 @@ namespace Trainer.Tests.Services;
 public class ExportImportServiceTests
 {
     private readonly Mock<IStorageService> _storageServiceMock;
+    private readonly Mock<IActivityService> _activityServiceMock;
     private readonly ExportImportService _service;
 
     public ExportImportServiceTests()
     {
         _storageServiceMock = new Mock<IStorageService>();
-        _service = new ExportImportService(_storageServiceMock.Object);
+        _activityServiceMock = new Mock<IActivityService>();
+        _service = new ExportImportService(_storageServiceMock.Object, _activityServiceMock.Object);
     }
 
     [Fact]
@@ -109,6 +111,7 @@ public class ExportImportServiceTests
         // Assert
         _storageServiceMock.Verify(x => x.SetItemAsync("activities", It.IsAny<List<Activity>>()), Times.Once);
         _storageServiceMock.Verify(x => x.SetItemAsync("activityTypes", It.IsAny<List<ActivityType>>()), Times.Once);
+        _activityServiceMock.Verify(x => x.RecalculateNextIdAsync(), Times.Once);
     }
 
     [Fact]
@@ -147,6 +150,7 @@ public class ExportImportServiceTests
         // Assert - Since the mock is IStorageService (not IndexedDbStorageService), it uses SetItemAsync
         _storageServiceMock.Verify(x => x.SetItemAsync("activities", It.IsAny<List<Activity>>()), Times.Once);
         _storageServiceMock.Verify(x => x.SetItemAsync("activityTypes", It.IsAny<List<ActivityType>>()), Times.Once);
+        _activityServiceMock.Verify(x => x.RecalculateNextIdAsync(), Times.Once);
     }
 
     [Fact]
@@ -183,6 +187,72 @@ public class ExportImportServiceTests
         // Assert
         _storageServiceMock.Verify(x => x.SetItemAsync("activities", It.IsAny<List<Activity>>()), Times.Once);
         _storageServiceMock.Verify(x => x.SetItemAsync("activityTypes", It.IsAny<List<ActivityType>>()), Times.Never);
+        _activityServiceMock.Verify(x => x.RecalculateNextIdAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task ImportDataAsync_RecalculatesNextId_AfterImportingActivities()
+    {
+        // Arrange
+        var testDate = DateTime.Now;
+        var exportData = new
+        {
+            activities = new List<Activity>
+            {
+                new() { Id = 10, ActivityTypeId = 1, When = testDate, Amount = 100, Notes = "Imported 1" },
+                new() { Id = 20, ActivityTypeId = 1, When = testDate, Amount = 200, Notes = "Imported 2" },
+                new() { Id = 30, ActivityTypeId = 1, When = testDate, Amount = 300, Notes = "Imported 3" }
+            },
+            activityTypes = new List<ActivityType>
+            {
+                new() { Id = 1, Name = "Water", NetBenefit = NetBenefit.Positive }
+            }
+        };
+
+        var json = JsonSerializer.Serialize(exportData, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+
+        _storageServiceMock
+            .Setup(x => x.SetItemAsync("activities", It.IsAny<List<Activity>>()))
+            .Returns(Task.CompletedTask);
+
+        _storageServiceMock
+            .Setup(x => x.SetItemAsync("activityTypes", It.IsAny<List<ActivityType>>()))
+            .Returns(Task.CompletedTask);
+
+        _activityServiceMock
+            .Setup(x => x.RecalculateNextIdAsync())
+            .Returns(Task.CompletedTask);
+
+        // Act
+        await _service.ImportDataAsync(json);
+
+        // Assert
+        _activityServiceMock.Verify(x => x.RecalculateNextIdAsync(), Times.Once, "RecalculateNextIdAsync should be called after importing activities");
+    }
+
+    [Fact]
+    public async Task ImportDataAsync_DoesNotRecalculateNextId_WhenNoActivitiesImported()
+    {
+        // Arrange
+        var exportData = new
+        {
+            activityTypes = new List<ActivityType>
+            {
+                new() { Id = 1, Name = "Water", NetBenefit = NetBenefit.Positive }
+            }
+        };
+
+        var json = JsonSerializer.Serialize(exportData, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+
+        _storageServiceMock
+            .Setup(x => x.SetItemAsync("activityTypes", It.IsAny<List<ActivityType>>()))
+            .Returns(Task.CompletedTask);
+
+        // Act
+        await _service.ImportDataAsync(json);
+
+        // Assert
+        _activityServiceMock.Verify(x => x.RecalculateNextIdAsync(), Times.Never, "RecalculateNextIdAsync should not be called when no activities are imported");
     }
 }
 

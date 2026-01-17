@@ -6,6 +6,7 @@ public class ActivityService(IStorageService storageService) : IActivityService
 {
     private readonly IndexedDbStorageService _storageService = storageService as IndexedDbStorageService ?? throw new InvalidOperationException("ActivityService requires IndexedDbStorageService");
     private const string StorageKey = "activities";
+    private const string NextIdKey = "activityNextId";
     private int _nextId = 1;
     private bool _nextIdInitialized = false;
 
@@ -14,10 +15,28 @@ public class ActivityService(IStorageService storageService) : IActivityService
         if (_nextIdInitialized)
             return;
 
-        var activities = await GetAllAsync();
-        if (activities.Any())
+        // Try to load from localStorage first
+        var storedNextId = await _storageService.GetItemAsync<int?>(NextIdKey);
+        if (storedNextId.HasValue && storedNextId.Value > 0)
         {
-            _nextId = activities.Max(a => a.Id) + 1;
+            _nextId = storedNextId.Value;
+        }
+        else
+        {
+            // Fallback: calculate from existing activities (for migration)
+            var activities = await _storageService.GetItemAsync<List<Activity>>(StorageKey) ?? new List<Activity>();
+            if (activities.Any())
+            {
+                _nextId = activities.Max(a => a.Id) + 1;
+                // Persist the calculated value
+                await _storageService.SetItemAsync(NextIdKey, _nextId);
+            }
+            else
+            {
+                // No activities, start at 1
+                _nextId = 1;
+                await _storageService.SetItemAsync(NextIdKey, _nextId);
+            }
         }
         _nextIdInitialized = true;
     }
@@ -41,16 +60,10 @@ public class ActivityService(IStorageService storageService) : IActivityService
             activities = await _storageService.GetItemAsync<List<Activity>>(StorageKey) ?? new List<Activity>();
         }
 
-        // Update next ID based on existing items (always check all activities, not just filtered results)
+        // Initialize nextId if not already done
         if (!_nextIdInitialized)
         {
-            // Need to check all activities to ensure we have the max ID, regardless of the filtered result
-            var allActivities = await _storageService.GetItemAsync<List<Activity>>(StorageKey) ?? new List<Activity>();
-            if (allActivities.Any())
-            {
-                _nextId = allActivities.Max(a => a.Id) + 1;
-            }
-            _nextIdInitialized = true;
+            await EnsureNextIdInitializedAsync();
         }
 
         return activities.OrderByDescending(a => a.When).ToList();
@@ -68,6 +81,9 @@ public class ActivityService(IStorageService storageService) : IActivityService
     {
         await EnsureNextIdInitializedAsync();
         activity.Id = _nextId++;
+        
+        // Persist the updated nextId to localStorage
+        await _storageService.SetItemAsync(NextIdKey, _nextId);
 
         // Get the week key for this activity
         var weekKey = WeekHelper.GetWeekKey(activity.When);
@@ -79,7 +95,6 @@ public class ActivityService(IStorageService storageService) : IActivityService
         // Save the week's activities
         await _storageService.SetActivitiesForWeekAsync(weekKey, weekActivities);
 
-        _nextIdInitialized = true;
         return activity;
     }
 
@@ -150,6 +165,22 @@ public class ActivityService(IStorageService storageService) : IActivityService
     public async Task<List<string>> GetAllAvailableWeekKeysAsync()
     {
         return await _storageService.GetAllAvailableWeekKeysAsync();
+    }
+
+    public async Task RecalculateNextIdAsync()
+    {
+        var activities = await _storageService.GetItemAsync<List<Activity>>(StorageKey) ?? new List<Activity>();
+        if (activities.Any())
+        {
+            _nextId = activities.Max(a => a.Id) + 1;
+        }
+        else
+        {
+            _nextId = 1;
+        }
+        // Persist the recalculated value
+        await _storageService.SetItemAsync(NextIdKey, _nextId);
+        _nextIdInitialized = true;
     }
 }
 
