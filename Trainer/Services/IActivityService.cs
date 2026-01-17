@@ -11,5 +11,6 @@ public interface IActivityService
     Task DeleteAsync(int id);
     Task<List<Activity>> GetByActivityTypeIdAsync(int activityTypeId);
     Task<List<string>> GetAllAvailableWeekKeysAsync();
+    Task RecalculateNextIdAsync();
 }
 
