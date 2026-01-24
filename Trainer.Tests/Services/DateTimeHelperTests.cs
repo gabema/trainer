@@ -5,325 +5,86 @@ namespace Trainer.Tests.Services;
 
 public class DateTimeHelperTests
 {
-    [Fact]
-    public void FormatWhenDateTime_LessThan1MinuteAgo_Returns1MinuteAgo()
+    private readonly DateTime _now = new(2025, 1, 15, 14, 30, 0);
+
+    [Theory]
+    [InlineData(0, 15, "1 minute ago")]   // 15 seconds ago
+    [InlineData(1, 0, "1 minute ago")]    // 1 minute ago
+    [InlineData(15, 0, "15 minutes ago")] // 15 minutes ago
+    [InlineData(119, 0, "119 minutes ago")] // 119 minutes ago
+    [InlineData(119, 59, "119 minutes ago")] // 119m 59s ago
+    public void FormatWhenDateTime_RecentTimes_ReturnsMinutesAgo(int minutesAgo, int secondsAgo, string expected)
     {
-        // Arrange
-        var now = new DateTime(2025, 1, 15, 14, 30, 0);
-        var when = new DateTime(2025, 1, 15, 14, 29, 45); // 15 seconds ago
-
-        // Act
-        var result = DateTimeHelper.FormatWhenDateTime(when, now);
-
-        // Assert
-        Assert.Equal("1 minute ago", result);
+        var when = _now.AddMinutes(-minutesAgo).AddSeconds(-secondsAgo);
+        var result = DateTimeHelper.FormatWhenDateTime(when, _now);
+        Assert.Equal(expected, result);
     }
 
-    [Fact]
-    public void FormatWhenDateTime_1MinuteAgo_Returns1MinuteAgo()
+    [Theory]
+    [InlineData(12, 30, "12:30 pm")] // Exactly 2 hours ago (14:30 - 2h = 12:30)
+    [InlineData(11, 30, "11:30 am")] // 3 hours ago
+    [InlineData(2, 25, "2:25 am")]   // Early morning same day
+    [InlineData(0, 15, "12:15 am")]  // Midnight + 15m same day
+    public void FormatWhenDateTime_SameDayOlderThan2Hours_ReturnsTimeOnly(int hour, int minute, string expected)
     {
-        // Arrange
-        var now = new DateTime(2025, 1, 15, 14, 30, 0);
-        var when = new DateTime(2025, 1, 15, 14, 29, 0); // 1 minute ago
-
-        // Act
-        var result = DateTimeHelper.FormatWhenDateTime(when, now);
-
-        // Assert
-        Assert.Equal("1 minute ago", result);
+        var when = new DateTime(_now.Year, _now.Month, _now.Day, hour, minute, 0);
+        var result = DateTimeHelper.FormatWhenDateTime(when, _now);
+        Assert.Equal(expected, result);
     }
 
-    [Fact]
-    public void FormatWhenDateTime_15MinutesAgo_Returns15MinutesAgo()
+    [Theory]
+    [InlineData(8, 30, "yesterday @ 8:30 am")]
+    [InlineData(15, 42, "yesterday @ 3:42 pm")]
+    [InlineData(2, 25, "yesterday @ 2:25 am")]
+    [InlineData(0, 0, "yesterday @ 12:00 am")]
+    public void FormatWhenDateTime_Yesterday_ReturnsYesterdayAtTime(int hour, int minute, string expected)
     {
-        // Arrange
-        var now = new DateTime(2025, 1, 15, 14, 30, 0);
-        var when = new DateTime(2025, 1, 15, 14, 15, 0); // 15 minutes ago
-
-        // Act
-        var result = DateTimeHelper.FormatWhenDateTime(when, now);
-
-        // Assert
-        Assert.Equal("15 minutes ago", result);
+        var yesterday = _now.AddDays(-1);
+        var when = new DateTime(yesterday.Year, yesterday.Month, yesterday.Day, hour, minute, 0);
+        var result = DateTimeHelper.FormatWhenDateTime(when, _now);
+        Assert.Equal(expected, result);
     }
 
-    [Fact]
-    public void FormatWhenDateTime_119MinutesAgo_Returns119MinutesAgo()
+    [Theory]
+    [InlineData(2025, 1, 13, 10, 22, "Jan 13 @ 10:22 am")] // Two days ago
+    [InlineData(2025, 1, 8, 9, 15, "Jan 8 @ 9:15 am")]     // One week ago
+    [InlineData(2024, 12, 15, 16, 45, "Dec 15 @ 4:45 pm")] // One month ago
+    [InlineData(2024, 1, 10, 10, 22, "Jan 10 @ 10:22 am")] // One year ago
+    [InlineData(2025, 1, 20, 10, 0, "Jan 20 @ 10:00 am")]  // Future date
+    public void FormatWhenDateTime_OtherDates_ReturnsShortDateAndTime(int year, int month, int day, int hour, int minute, string expected)
     {
-        // Arrange
-        var now = new DateTime(2025, 1, 15, 14, 30, 0);
-        var when = new DateTime(2025, 1, 15, 12, 31, 0); // 119 minutes ago (just under 2 hours)
-
-        // Act
-        var result = DateTimeHelper.FormatWhenDateTime(when, now);
-
-        // Assert
-        Assert.Equal("119 minutes ago", result);
-    }
-
-    [Fact]
-    public void FormatWhenDateTime_2HoursAgoSameDay_ReturnsTimeOnly()
-    {
-        // Arrange
-        var now = new DateTime(2025, 1, 15, 14, 30, 0);
-        var when = new DateTime(2025, 1, 15, 12, 30, 0); // Exactly 2 hours ago, same day
-
-        // Act
-        var result = DateTimeHelper.FormatWhenDateTime(when, now);
-
-        // Assert
-        Assert.Equal("12:30 pm", result);
-    }
-
-    [Fact]
-    public void FormatWhenDateTime_3HoursAgoSameDay_ReturnsTimeOnly()
-    {
-        // Arrange
-        var now = new DateTime(2025, 1, 15, 14, 30, 0);
-        var when = new DateTime(2025, 1, 15, 11, 30, 0); // 3 hours ago, same day
-
-        // Act
-        var result = DateTimeHelper.FormatWhenDateTime(when, now);
-
-        // Assert
-        Assert.Equal("11:30 am", result);
-    }
-
-    [Fact]
-    public void FormatWhenDateTime_EarlyMorningSameDay_ReturnsTimeOnly()
-    {
-        // Arrange
-        var now = new DateTime(2025, 1, 15, 14, 30, 0);
-        var when = new DateTime(2025, 1, 15, 2, 25, 0); // 12 hours ago, same day, early morning
-
-        // Act
-        var result = DateTimeHelper.FormatWhenDateTime(when, now);
-
-        // Assert
-        Assert.Equal("2:25 am", result);
-    }
-
-    [Fact]
-    public void FormatWhenDateTime_LastTimeOfSameDay_ReturnsTimeOnly()
-    {
-        // Arrange
-        var now = new DateTime(2025, 1, 15, 14, 30, 0);
-        var when = new DateTime(2025, 1, 15, 0, 15, 0); // Early morning same day
-
-        // Act
-        var result = DateTimeHelper.FormatWhenDateTime(when, now);
-
-        // Assert
-        Assert.Equal("12:15 am", result);
-    }
-
-    [Fact]
-    public void FormatWhenDateTime_YesterdayAtMorning_ReturnsYesterdayAtTime()
-    {
-        // Arrange
-        var now = new DateTime(2025, 1, 15, 14, 30, 0);
-        var when = new DateTime(2025, 1, 14, 8, 30, 0); // Yesterday morning
-
-        // Act
-        var result = DateTimeHelper.FormatWhenDateTime(when, now);
-
-        // Assert
-        Assert.Equal("yesterday @ 8:30 am", result);
-    }
-
-    [Fact]
-    public void FormatWhenDateTime_YesterdayAtAfternoon_ReturnsYesterdayAtTime()
-    {
-        // Arrange
-        var now = new DateTime(2025, 1, 15, 14, 30, 0);
-        var when = new DateTime(2025, 1, 14, 15, 42, 0); // Yesterday afternoon
-
-        // Act
-        var result = DateTimeHelper.FormatWhenDateTime(when, now);
-
-        // Assert
-        Assert.Equal("yesterday @ 3:42 pm", result);
-    }
-
-    [Fact]
-    public void FormatWhenDateTime_YesterdayAtEarlyMorning_ReturnsYesterdayAtTime()
-    {
-        // Arrange
-        var now = new DateTime(2025, 1, 15, 14, 30, 0);
-        var when = new DateTime(2025, 1, 14, 2, 25, 0); // Yesterday early morning
-
-        // Act
-        var result = DateTimeHelper.FormatWhenDateTime(when, now);
-
-        // Assert
-        Assert.Equal("yesterday @ 2:25 am", result);
-    }
-
-    [Fact]
-    public void FormatWhenDateTime_YesterdayAtMidnight_ReturnsYesterdayAtTime()
-    {
-        // Arrange
-        var now = new DateTime(2025, 1, 15, 14, 30, 0);
-        var when = new DateTime(2025, 1, 14, 0, 0, 0); // Yesterday at midnight
-
-        // Act
-        var result = DateTimeHelper.FormatWhenDateTime(when, now);
-
-        // Assert
-        Assert.Equal("yesterday @ 12:00 am", result);
-    }
-
-    [Fact]
-    public void FormatWhenDateTime_TwoDaysAgo_ReturnsShortDateAndTime()
-    {
-        // Arrange
-        var now = new DateTime(2025, 1, 15, 14, 30, 0);
-        var when = new DateTime(2025, 1, 13, 10, 22, 0); // Two days ago
-
-        // Act
-        var result = DateTimeHelper.FormatWhenDateTime(when, now);
-
-        // Assert
-        Assert.Equal("Jan 13 @ 10:22 am", result);
-    }
-
-    [Fact]
-    public void FormatWhenDateTime_OneWeekAgo_ReturnsShortDateAndTime()
-    {
-        // Arrange
-        var now = new DateTime(2025, 1, 15, 14, 30, 0);
-        var when = new DateTime(2025, 1, 8, 9, 15, 0); // One week ago
-
-        // Act
-        var result = DateTimeHelper.FormatWhenDateTime(when, now);
-
-        // Assert
-        Assert.Equal("Jan 8 @ 9:15 am", result);
-    }
-
-    [Fact]
-    public void FormatWhenDateTime_OneMonthAgo_ReturnsShortDateAndTime()
-    {
-        // Arrange
-        var now = new DateTime(2025, 1, 15, 14, 30, 0);
-        var when = new DateTime(2024, 12, 15, 16, 45, 0); // One month ago
-
-        // Act
-        var result = DateTimeHelper.FormatWhenDateTime(when, now);
-
-        // Assert
-        Assert.Equal("Dec 15 @ 4:45 pm", result);
-    }
-
-    [Fact]
-    public void FormatWhenDateTime_OneYearAgo_ReturnsShortDateAndTime()
-    {
-        // Arrange
-        var now = new DateTime(2025, 1, 15, 14, 30, 0);
-        var when = new DateTime(2024, 1, 10, 10, 22, 0); // One year ago
-
-        // Act
-        var result = DateTimeHelper.FormatWhenDateTime(when, now);
-
-        // Assert
-        Assert.Equal("Jan 10 @ 10:22 am", result);
-    }
-
-    [Fact]
-    public void FormatWhenDateTime_FutureDate_ReturnsShortDateAndTime()
-    {
-        // Arrange
-        var now = new DateTime(2025, 1, 15, 14, 30, 0);
-        var when = new DateTime(2025, 1, 20, 10, 0, 0); // Future date (edge case)
-
-        // Act
-        var result = DateTimeHelper.FormatWhenDateTime(when, now);
-
-        // Assert
-        Assert.Equal("Jan 20 @ 10:00 am", result);
-    }
-
-    [Fact]
-    public void FormatWhenDateTime_ExactlyAt2HoursBoundary_ReturnsTimeOnly()
-    {
-        // Arrange
-        var now = new DateTime(2025, 1, 15, 14, 30, 0);
-        var when = new DateTime(2025, 1, 15, 12, 30, 0); // Exactly 2 hours ago
-
-        // Act
-        var result = DateTimeHelper.FormatWhenDateTime(when, now);
-
-        // Assert
-        // Should show time only (not "120 minutes ago")
-        Assert.Equal("12:30 pm", result);
-    }
-
-    [Fact]
-    public void FormatWhenDateTime_119Minutes59SecondsAgo_Returns119MinutesAgo()
-    {
-        // Arrange
-        var now = new DateTime(2025, 1, 15, 14, 30, 0);
-        var when = new DateTime(2025, 1, 15, 12, 30, 1); // 119 minutes 59 seconds ago
-
-        // Act
-        var result = DateTimeHelper.FormatWhenDateTime(when, now);
-
-        // Assert
-        Assert.Equal("119 minutes ago", result);
+        var when = new DateTime(year, month, day, hour, minute, 0);
+        var result = DateTimeHelper.FormatWhenDateTime(when, _now);
+        Assert.Equal(expected, result);
     }
 
     [Fact]
     public void FormatWhenDateTime_NoNowParameter_UsesCurrentTime()
     {
-        // Arrange
-        var when = DateTime.Now.AddMinutes(-30); // 30 minutes ago
-
-        // Act
+        var when = DateTime.Now.AddMinutes(-30);
         var result = DateTimeHelper.FormatWhenDateTime(when);
-
-        // Assert
-        // Should use DateTime.Now (current time) as the reference
         Assert.Contains("minutes ago", result);
     }
 
-    [Fact]
-    public void GetDateRange_Last24Hours_ReturnsLast24Hours()
+    [Theory]
+    [InlineData(DurationOption.Last24Hours, 1)]
+    [InlineData(DurationOption.Last7Days, 7)]
+    [InlineData(DurationOption.Last4Weeks, 28)]
+    public void GetDateRange_RelativeDurations_ReturnsCorrectRange(DurationOption duration, int days)
     {
-        var now = new DateTime(2025, 1, 15, 12, 0, 0);
-        var (start, end) = DateTimeHelper.GetDateRange(DurationOption.Last24Hours, now);
-        Assert.Equal(now.AddHours(-24), start);
-        Assert.Equal(now, end);
-    }
-
-    [Fact]
-    public void GetDateRange_Last7Days_ReturnsLast7Days()
-    {
-        var now = new DateTime(2025, 1, 15, 12, 0, 0);
-        var (start, end) = DateTimeHelper.GetDateRange(DurationOption.Last7Days, now);
-        Assert.Equal(now.AddDays(-7), start);
-        Assert.Equal(now, end);
-    }
-
-    [Fact]
-    public void GetDateRange_Last4Weeks_ReturnsLast28Days()
-    {
-        var now = new DateTime(2025, 1, 15, 12, 0, 0);
-        var (start, end) = DateTimeHelper.GetDateRange(DurationOption.Last4Weeks, now);
-        Assert.Equal(now.AddDays(-28), start);
-        Assert.Equal(now, end);
+        var (start, end) = DateTimeHelper.GetDateRange(duration, _now);
+        Assert.Equal(_now.AddDays(-days), start);
+        Assert.Equal(_now, end);
     }
 
     [Fact]
     public void GetDateRange_Week_ReturnsCurrentWeekFromMonday()
     {
         // Jan 15 2025 is a Wednesday
-        var now = new DateTime(2025, 1, 15, 12, 0, 0); 
-        var (start, end) = DateTimeHelper.GetDateRange(DurationOption.Week, now);
+        var (start, end) = DateTimeHelper.GetDateRange(DurationOption.Week, _now);
         
-        // Monday of that week is Jan 13
-        var expectedStart = new DateTime(2025, 1, 13); // Midnight
-        // End is Sunday Jan 19 at 23:59:59
-        var expectedEnd = new DateTime(2025, 1, 19, 23, 59, 59);
+        var expectedStart = new DateTime(2025, 1, 13); // Monday
+        var expectedEnd = new DateTime(2025, 1, 19, 23, 59, 59); // Sunday
 
         Assert.Equal(expectedStart, start);
         Assert.Equal(expectedEnd, end);

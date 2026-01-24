@@ -1,6 +1,6 @@
-using Trainer.Models;
-
 namespace Trainer.Services;
+
+using Trainer.Models;
 
 public class ActivityTypeService(IStorageService storageService) : IActivityTypeService
 {
@@ -60,4 +60,3 @@ public class ActivityTypeService(IStorageService storageService) : IActivityType
         await _storageService.SetItemAsync(StorageKey, types);
     }
 }
-

@@ -12,59 +12,26 @@ public class GoalServiceTests
         _service = new GoalService();
     }
 
-    [Fact]
-    public void GetGoalAmount_Last24Hours_UsesDailyAmount()
+    [Theory]
+    [InlineData(DurationOption.Last24Hours, 10, 50, 10)]
+    [InlineData(DurationOption.Last7Days, 10, 50, 50)]
+    [InlineData(DurationOption.Week, 10, 50, 50)]
+    public void GetGoalAmount_StandardDurations_ReturnsCorrectAmount(DurationOption duration, int daily, int weekly, int expected)
     {
-        var type = new ActivityType { DailyAmount = 10, WeeklyAmount = 50 };
-        var result = _service.GetGoalAmount(type, DurationOption.Last24Hours);
-        Assert.Equal(10, result);
+        var type = new ActivityType { DailyAmount = daily, WeeklyAmount = weekly };
+        var result = _service.GetGoalAmount(type, duration);
+        Assert.Equal(expected, result);
     }
 
-    [Fact]
-    public void GetGoalAmount_Last7Days_UsesWeeklyAmount()
+    [Theory]
+    [InlineData(null, 50, 200)] // Weekly only: 50 * 4
+    [InlineData(10, null, 280)] // Daily only: 10 * 28
+    [InlineData(10, 50, 200)]   // Both: 50 * 4 (prefers weekly)
+    [InlineData(null, null, null)] // Neither
+    public void GetGoalAmount_Last4Weeks_ReturnsCorrectAmount(int? daily, int? weekly, int? expected)
     {
-        var type = new ActivityType { DailyAmount = 10, WeeklyAmount = 50 };
-        var result = _service.GetGoalAmount(type, DurationOption.Last7Days);
-        Assert.Equal(50, result);
-    }
-
-    [Fact]
-    public void GetGoalAmount_Week_UsesWeeklyAmount()
-    {
-        var type = new ActivityType { DailyAmount = 10, WeeklyAmount = 50 };
-        var result = _service.GetGoalAmount(type, DurationOption.Week);
-        Assert.Equal(50, result);
-    }
-
-    [Fact]
-    public void GetGoalAmount_Last4Weeks_WithWeeklyAmount_ReturnsWeeklyTimes4()
-    {
-        var type = new ActivityType { WeeklyAmount = 50 };
+        var type = new ActivityType { DailyAmount = daily, WeeklyAmount = weekly };
         var result = _service.GetGoalAmount(type, DurationOption.Last4Weeks);
-        Assert.Equal(200, result); // 50 * 4
-    }
-
-    [Fact]
-    public void GetGoalAmount_Last4Weeks_WithDailyAmountOnly_ReturnsDailyTimes28()
-    {
-        var type = new ActivityType { DailyAmount = 10 };
-        var result = _service.GetGoalAmount(type, DurationOption.Last4Weeks);
-        Assert.Equal(280, result); // 10 * 28
-    }
-
-    [Fact]
-    public void GetGoalAmount_Last4Weeks_WithBothAmounts_PrefersWeeklyTimes4()
-    {
-        var type = new ActivityType { DailyAmount = 10, WeeklyAmount = 50 };
-        var result = _service.GetGoalAmount(type, DurationOption.Last4Weeks);
-        Assert.Equal(200, result); // 50 * 4, ignoring 10 * 28 = 280
-    }
-
-    [Fact]
-    public void GetGoalAmount_Last4Weeks_WithNoAmounts_ReturnsNull()
-    {
-        var type = new ActivityType();
-        var result = _service.GetGoalAmount(type, DurationOption.Last4Weeks);
-        Assert.Null(result);
+        Assert.Equal(expected, result);
     }
 }

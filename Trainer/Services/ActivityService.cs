@@ -1,6 +1,6 @@
-using Trainer.Models;
-
 namespace Trainer.Services;
+
+using Trainer.Models;
 
 public class ActivityService(IStorageService storageService) : IActivityService
 {
@@ -183,4 +183,3 @@ public class ActivityService(IStorageService storageService) : IActivityService
         _nextIdInitialized = true;
     }
 }
-

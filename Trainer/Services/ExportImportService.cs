@@ -1,7 +1,7 @@
+namespace Trainer.Services;
+
 using System.Text.Json;
 using Trainer.Models;
-
-namespace Trainer.Services;
 
 public class ExportImportService(IStorageService storageService, IActivityService activityService) : IExportImportService
 {
@@ -154,4 +154,3 @@ public class ExportImportService(IStorageService storageService, IActivityServic
         }
     }
 }
-
