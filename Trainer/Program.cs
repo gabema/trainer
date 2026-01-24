@@ -14,6 +14,7 @@ builder.Services.AddScoped<IndexedDbStorageService>();
 builder.Services.AddScoped<IStorageService>(sp => sp.GetRequiredService<IndexedDbStorageService>());
 builder.Services.AddScoped<IActivityService, ActivityService>();
 builder.Services.AddScoped<IActivityTypeService, ActivityTypeService>();
+builder.Services.AddScoped<IGoalService, GoalService>();
 builder.Services.AddScoped<IExportImportService, ExportImportService>();
 
 await builder.Build().RunAsync();

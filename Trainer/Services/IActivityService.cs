@@ -1,6 +1,6 @@
-using Trainer.Models;
-
 namespace Trainer.Services;
+
+using Trainer.Models;
 
 public interface IActivityService
 {
@@ -13,4 +13,3 @@ public interface IActivityService
     Task<List<string>> GetAllAvailableWeekKeysAsync();
     Task RecalculateNextIdAsync();
 }
-
