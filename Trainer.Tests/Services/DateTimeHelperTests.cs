@@ -1,3 +1,4 @@
+using Trainer.Models;
 using Trainer.Services;
 
 namespace Trainer.Tests.Services;
@@ -284,5 +285,47 @@ public class DateTimeHelperTests
         // Should use DateTime.Now (current time) as the reference
         Assert.Contains("minutes ago", result);
     }
-}
 
+    [Fact]
+    public void GetDateRange_Last24Hours_ReturnsLast24Hours()
+    {
+        var now = new DateTime(2025, 1, 15, 12, 0, 0);
+        var (start, end) = DateTimeHelper.GetDateRange(DurationOption.Last24Hours, now);
+        Assert.Equal(now.AddHours(-24), start);
+        Assert.Equal(now, end);
+    }
+
+    [Fact]
+    public void GetDateRange_Last7Days_ReturnsLast7Days()
+    {
+        var now = new DateTime(2025, 1, 15, 12, 0, 0);
+        var (start, end) = DateTimeHelper.GetDateRange(DurationOption.Last7Days, now);
+        Assert.Equal(now.AddDays(-7), start);
+        Assert.Equal(now, end);
+    }
+
+    [Fact]
+    public void GetDateRange_Last4Weeks_ReturnsLast28Days()
+    {
+        var now = new DateTime(2025, 1, 15, 12, 0, 0);
+        var (start, end) = DateTimeHelper.GetDateRange(DurationOption.Last4Weeks, now);
+        Assert.Equal(now.AddDays(-28), start);
+        Assert.Equal(now, end);
+    }
+
+    [Fact]
+    public void GetDateRange_Week_ReturnsCurrentWeekFromMonday()
+    {
+        // Jan 15 2025 is a Wednesday
+        var now = new DateTime(2025, 1, 15, 12, 0, 0); 
+        var (start, end) = DateTimeHelper.GetDateRange(DurationOption.Week, now);
+        
+        // Monday of that week is Jan 13
+        var expectedStart = new DateTime(2025, 1, 13); // Midnight
+        // End is Sunday Jan 19 at 23:59:59
+        var expectedEnd = new DateTime(2025, 1, 19, 23, 59, 59);
+
+        Assert.Equal(expectedStart, start);
+        Assert.Equal(expectedEnd, end);
+    }
+}
