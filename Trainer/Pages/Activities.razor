@@ -121,6 +121,8 @@
     private DotNetObjectReference<Activities>? objRef;
     private IJSObjectReference? infiniteScrollModule;
     private bool _initialized = false;
+    private string? _lastFilterDate;
+    private string? _lastFilterSearch;
 
     private enum DateFilterOption
     {
@@ -130,6 +132,38 @@
         Last7Days,
         Last4Weeks,
         Custom
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Check if query parameters have changed
+        bool parametersChanged = FilterDate != _lastFilterDate || FilterSearch != _lastFilterSearch;
+        
+        if (parametersChanged)
+        {
+            // Store old values before updating (needed for reset logic in ApplyQueryParameters)
+            var oldFilterDate = _lastFilterDate;
+            var oldFilterSearch = _lastFilterSearch;
+            
+            // Update to new values
+            _lastFilterDate = FilterDate;
+            _lastFilterSearch = FilterSearch;
+            
+            // Only apply query parameters if component is already initialized
+            // (OnAfterRenderAsync handles the first render case)
+            if (_initialized)
+            {
+                ApplyQueryParameters(oldFilterDate, oldFilterSearch);
+                
+                // Reset and reload data when parameters change
+                allLoadedActivities.Clear();
+                loadedWeekKeys.Clear();
+                availableWeekKeys.Clear();
+                hasMoreWeeksToLoad = true;
+                
+                await LoadInitialWeeks();
+            }
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -150,19 +184,31 @@
             
             await LoadActivityTypes();
             
-            // Apply query parameters if present
-            ApplyQueryParameters();
+            // Store initial parameter values
+            _lastFilterDate = FilterDate;
+            _lastFilterSearch = FilterSearch;
+            
+            // Apply query parameters if present (no old values on first render)
+            ApplyQueryParameters(null, null);
             
             await LoadInitialWeeks();
         }
     }
 
-    private void ApplyQueryParameters()
+    private void ApplyQueryParameters(string? oldFilterDate, string? oldFilterSearch)
     {
         // Apply search filter from query param
         if (!string.IsNullOrEmpty(FilterSearch))
         {
             searchTerm = FilterSearch;
+        }
+        else
+        {
+            // Reset search term when query param is cleared (only if it was previously set)
+            if (!string.IsNullOrEmpty(oldFilterSearch))
+            {
+                searchTerm = string.Empty;
+            }
         }
 
         // Apply date filter from query param
@@ -171,6 +217,16 @@
             selectedDateFilter = DateFilterOption.Custom;
             customStartDate = date.Date;
             customEndDate = date.Date.AddDays(1).AddSeconds(-1);
+        }
+        else
+        {
+            // Reset date filter when query param is cleared (only if it was previously set)
+            if (!string.IsNullOrEmpty(oldFilterDate))
+            {
+                selectedDateFilter = DateFilterOption.Last4Weeks;
+                customStartDate = null;
+                customEndDate = null;
+            }
         }
     }
 
