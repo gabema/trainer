@@ -65,7 +65,7 @@ window.notificationHelper = {
         }
     },
     
-    // Get notification state
+    // Get notification state (for potential resume or client-side checks)
     _getState: async function(activityId) {
         try {
             const db = await this._initDB();
@@ -83,7 +83,7 @@ window.notificationHelper = {
         }
     },
     
-    // Remove notification state
+    // Remove notification state (prevents accumulation; also called by service worker on notificationclose)
     _removeState: async function(activityId) {
         try {
             const db = await this._initDB();
@@ -97,6 +97,11 @@ window.notificationHelper = {
         } catch (error) {
             console.error('Error removing notification state:', error);
         }
+    },
+
+    // Clear guided notification state for an activity (e.g. when activity is deleted or notes changed)
+    clearGuidedState: async function(activityId) {
+        await this._removeState(activityId);
     },
     
     // Split notes into lines, filtering empty lines

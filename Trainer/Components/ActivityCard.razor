@@ -172,7 +172,16 @@
     private async Task ConfirmDelete()
     {
         showDeleteConfirmation = false;
-        await ActivityService.DeleteAsync(Activity.Id);
+        var activityId = Activity.Id;
+        await ActivityService.DeleteAsync(activityId);
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("notificationHelper.clearGuidedState", activityId);
+        }
+        catch
+        {
+            // Ignore if notification helper or IndexedDB unavailable
+        }
         await OnActivityDeleted.InvokeAsync();
         StateHasChanged();
     }

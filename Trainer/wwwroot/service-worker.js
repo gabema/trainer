@@ -65,10 +65,11 @@ self.addEventListener('notificationclick', event => {
   if (!action) {
     event.waitUntil(
       (async () => {
-        // Determine the URL to navigate to
-        let targetUrl = '/';
+        // Determine the URL to navigate to (use basePath for subpath deployment)
+        const baseUrl = basePath + (basePath.endsWith('/') ? '' : '/');
+        let targetUrl = baseUrl;
         if (data && data.activityId !== undefined) {
-          targetUrl = `/activity/${data.activityId}`;
+          targetUrl = baseUrl + 'activity/' + data.activityId;
         }
         
         // Try to find and navigate an existing window
@@ -200,4 +201,41 @@ self.addEventListener('notificationclick', event => {
       })()
     );
   }
+});
+
+// When a guided notification is dismissed, remove its state from IndexedDB to avoid indefinite accumulation
+self.addEventListener('notificationclose', event => {
+  const data = event.notification && event.notification.data;
+  if (!data || data.activityId === undefined) {
+    return;
+  }
+  const activityId = data.activityId;
+  const dbName = 'TrainerDB';
+  const storeName = 'guidedNotifications';
+  event.waitUntil(
+    (async () => {
+      try {
+        const db = await new Promise((resolve, reject) => {
+          const request = indexedDB.open(dbName, 1);
+          request.onerror = () => reject(request.error);
+          request.onsuccess = () => resolve(request.result);
+          request.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains(storeName)) {
+              db.createObjectStore(storeName, { keyPath: 'activityId' });
+            }
+          };
+        });
+        const transaction = db.transaction([storeName], 'readwrite');
+        const store = transaction.objectStore(storeName);
+        await new Promise((resolve, reject) => {
+          const request = store.delete(activityId);
+          request.onsuccess = () => resolve();
+          request.onerror = () => reject(request.error);
+        });
+      } catch (error) {
+        console.error('Error removing guided notification state:', error);
+      }
+    })()
+  );
 });
