@@ -1,0 +1,394 @@
+@page "/calendar"
+@using Microsoft.AspNetCore.Components
+@using Microsoft.JSInterop
+@inject IActivityService ActivityService
+@inject IActivityTypeService ActivityTypeService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@implements IAsyncDisposable
+
+<PageTitle>Calendar - Trainer</PageTitle>
+
+<div class="container mt-4">
+    @if (isLoading && loadedMonths.Count == 0)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="calendar-container">
+            @foreach (var month in loadedMonths.OrderByDescending(m => m.Year * 100 + m.Month))
+            {
+                <div class="calendar-month card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">@GetMonthName(month.Month) @month.Year</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="calendar-grid">
+                            <div class="calendar-header-row">
+                                <div class="calendar-header-cell weekend">Sat</div>
+                                <div class="calendar-header-cell">Fri</div>
+                                <div class="calendar-header-cell">Thu</div>
+                                <div class="calendar-header-cell">Wed</div>
+                                <div class="calendar-header-cell">Tue</div>
+                                <div class="calendar-header-cell">Mon</div>
+                                <div class="calendar-header-cell weekend">Sun</div>
+                            </div>
+                            @{
+                                var weeks = GetWeeksInMonth(month.Year, month.Month);
+                            }
+                            @foreach (var week in weeks)
+                            {
+                                <div class="calendar-week-row">
+                                    @for (int i = 6; i >= 0; i--)
+                                    {
+                                        var day = week[i];
+                                        @if (day.HasValue)
+                                        {
+                                            var dayDate = new DateTime(month.Year, month.Month, day.Value);
+                                            var dayActivities = GetActivitiesForDay(dayDate);
+                                            var isToday = dayDate.Date == DateTime.Today;
+                                            var isWeekend = dayDate.DayOfWeek == DayOfWeek.Saturday || dayDate.DayOfWeek == DayOfWeek.Sunday;
+                                            
+                                            <div class="calendar-day-cell @(isToday ? "today" : "") @(isWeekend ? "weekend" : "") @(dayActivities.Any() ? "has-activities" : "")">
+                                                <div class="day-number">@day.Value</div>
+                                                @if (dayActivities.Any())
+                                                {
+                                                    <div class="day-activities">
+                                                        @foreach (var activityGroup in dayActivities.Take(6))
+                                                        {
+                                                            <button class="activity-pill @GetActivityBenefitClass(activityGroup.ActivityTypeId)" 
+                                                                    @onclick="() => NavigateToActivities(dayDate, activityGroup.ActivityTypeId)"
+                                                                    title="@GetActivityTypeName(activityGroup.ActivityTypeId): @activityGroup.Count">
+                                                                <span class="activity-name">@GetActivityTypeName(activityGroup.ActivityTypeId)</span>
+                                                            </button>
+                                                        }
+                                                        @if (dayActivities.Count() > 6)
+                                                        {
+                                                            <button class="activity-pill more" 
+                                                                    @onclick="() => NavigateToActivitiesForDay(dayDate)"
+                                                                    title="View all activities">
+                                                                +@(dayActivities.Count() - 6) more
+                                                            </button>
+                                                        }
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="calendar-day-cell empty"></div>
+                                        }
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+            
+            @if (hasMoreMonthsToLoad)
+            {
+                <div id="calendar-scroll-trigger" style="height: 20px;"></div>
+            }
+            
+            @if (isLoading && loadedMonths.Count > 0)
+            {
+                <div class="text-center py-3">
+                    <div class="spinner-border spinner-border-sm" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<(int Year, int Month)> loadedMonths = new();
+    private Dictionary<DateTime, List<Activity>> activitiesByDay = new();
+    private List<ActivityType> activityTypes = new();
+    private HashSet<string> loadedWeekKeys = new();
+    private HashSet<string> availableWeekKeys = new();
+    private bool isLoading = false;
+    private bool hasMoreMonthsToLoad = true;
+    private (int Year, int Month) oldestLoadedMonth = (DateTime.Now.Year, DateTime.Now.Month);
+    private DotNetObjectReference<Calendar>? objRef;
+    private IJSObjectReference? infiniteScrollModule;
+    private bool _initialized = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_initialized)
+        {
+            _initialized = true;
+            objRef = DotNetObjectReference.Create(this);
+            
+            try
+            {
+                infiniteScrollModule = await JSRuntime.InvokeAsync<IJSObjectReference>("import", "/js/infinite-scroll.js");
+                await infiniteScrollModule.InvokeVoidAsync("initializeObserver", objRef, "calendar-scroll-trigger");
+            }
+            catch
+            {
+                // JavaScript module not loaded yet
+            }
+            
+            await LoadActivityTypes();
+            await LoadInitialMonths();
+        }
+    }
+
+    private async Task LoadActivityTypes()
+    {
+        activityTypes = await ActivityTypeService.GetAllAsync();
+    }
+
+    private async Task LoadInitialMonths()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            // Get all available week keys
+            var allAvailableWeekKeys = await ActivityService.GetAllAvailableWeekKeysAsync();
+            availableWeekKeys = new HashSet<string>(allAvailableWeekKeys);
+
+            // Start with current month
+            var now = DateTime.Now;
+            oldestLoadedMonth = (now.Year, now.Month);
+            
+            // Load current month and 2 previous months
+            for (int i = 0; i < 3; i++)
+            {
+                var monthToLoad = now.AddMonths(-i);
+                await LoadMonthActivities(monthToLoad.Year, monthToLoad.Month);
+                loadedMonths.Add((monthToLoad.Year, monthToLoad.Month));
+                oldestLoadedMonth = (monthToLoad.Year, monthToLoad.Month);
+            }
+
+            // Check if there's more data
+            hasMoreMonthsToLoad = availableWeekKeys.Any();
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+            await SetupScrollObserver();
+        }
+    }
+
+    private async Task LoadMonthActivities(int year, int month)
+    {
+        var startDate = new DateTime(year, month, 1);
+        var endDate = startDate.AddMonths(1).AddDays(-1);
+
+        // Get week keys for this month
+        var weekKeys = WeekHelper.GetWeekKeysInRange(startDate, endDate).ToList();
+
+        foreach (var weekKey in weekKeys)
+        {
+            if (!loadedWeekKeys.Contains(weekKey) && availableWeekKeys.Contains(weekKey))
+            {
+                var weekStart = WeekHelper.GetWeekStartDate(weekKey);
+                var weekEnd = WeekHelper.GetWeekEndDate(weekKey);
+                var activities = await ActivityService.GetAllAsync(weekStart, weekEnd);
+
+                foreach (var activity in activities)
+                {
+                    var dayKey = activity.When.Date;
+                    if (!activitiesByDay.ContainsKey(dayKey))
+                    {
+                        activitiesByDay[dayKey] = new List<Activity>();
+                    }
+                    activitiesByDay[dayKey].Add(activity);
+                }
+
+                loadedWeekKeys.Add(weekKey);
+            }
+        }
+    }
+
+    private async Task LoadNextMonth()
+    {
+        if (isLoading || !hasMoreMonthsToLoad)
+            return;
+
+        // Guard against uninitialized oldestLoadedMonth
+        if (oldestLoadedMonth.Year == 0 || oldestLoadedMonth.Month == 0 || oldestLoadedMonth.Month > 12)
+        {
+            return;
+        }
+
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var nextMonth = new DateTime(oldestLoadedMonth.Year, oldestLoadedMonth.Month, 1).AddMonths(-1);
+            
+            // Check if this month has any data
+            var monthStart = nextMonth;
+            var monthEnd = nextMonth.AddMonths(1).AddDays(-1);
+            var weekKeysInMonth = WeekHelper.GetWeekKeysInRange(monthStart, monthEnd);
+            var hasDataInMonth = weekKeysInMonth.Any(wk => availableWeekKeys.Contains(wk) && !loadedWeekKeys.Contains(wk));
+
+            if (hasDataInMonth || nextMonth >= DateTime.Now.AddYears(-2))
+            {
+                await LoadMonthActivities(nextMonth.Year, nextMonth.Month);
+                loadedMonths.Add((nextMonth.Year, nextMonth.Month));
+            }
+
+            oldestLoadedMonth = (nextMonth.Year, nextMonth.Month);
+
+            // Check if there are still unloaded weeks
+            hasMoreMonthsToLoad = availableWeekKeys.Any(wk => !loadedWeekKeys.Contains(wk)) && 
+                                  nextMonth >= DateTime.Now.AddYears(-5);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnScrollTriggerVisible()
+    {
+        if (!isLoading && hasMoreMonthsToLoad)
+        {
+            await LoadNextMonth();
+        }
+    }
+
+    private async Task SetupScrollObserver()
+    {
+        if (infiniteScrollModule != null && hasMoreMonthsToLoad)
+        {
+            try
+            {
+                await Task.Delay(100);
+                await infiniteScrollModule.InvokeVoidAsync("observeElement", "calendar-scroll-trigger");
+            }
+            catch
+            {
+                // Ignore errors
+            }
+        }
+    }
+
+    private string GetMonthName(int month)
+    {
+        return new DateTime(2000, month, 1).ToString("MMMM");
+    }
+
+    private IEnumerable<List<int?>> GetWeeksInMonth(int year, int month)
+    {
+        var firstDay = new DateTime(year, month, 1);
+        var lastDay = firstDay.AddMonths(1).AddDays(-1);
+        
+        // Build all days first, then organize into weeks in descending order
+        var allDays = new List<(int day, int dayOfWeek)>();
+        for (int day = lastDay.Day; day >= 1; day--)
+        {
+            var dayDate = new DateTime(year, month, day);
+            var dayOfWeek = (int)dayDate.DayOfWeek; // 0 = Sunday, 6 = Saturday
+            allDays.Add((day, dayOfWeek));
+        }
+        
+        // Build weeks from the list of days
+        var weeks = new List<List<int?>>();
+        var currentWeek = new List<int?>(new int?[7]);
+        
+        foreach (var (day, dayOfWeek) in allDays)
+        {
+            // Place the day in its correct position based on day of week
+            currentWeek[dayOfWeek] = day;
+            
+            // If this is Sunday (dayOfWeek == 0) or we've filled a complete week, start a new week
+            if (dayOfWeek == 0)
+            {
+                weeks.Add(currentWeek);
+                currentWeek = new List<int?>(new int?[7]);
+            }
+        }
+        
+        // Add the last partial week if it has any days
+        if (currentWeek.Any(d => d.HasValue))
+        {
+            weeks.Add(currentWeek);
+        }
+
+        return weeks;
+    }
+
+    private IEnumerable<(int ActivityTypeId, int Count)> GetActivitiesForDay(DateTime date)
+    {
+        if (!activitiesByDay.TryGetValue(date.Date, out var activities))
+        {
+            return Enumerable.Empty<(int, int)>();
+        }
+
+        return activities
+            .GroupBy(a => a.ActivityTypeId)
+            .Select(g => (g.Key, g.Count()))
+            .OrderByDescending(g => g.Item2);
+    }
+
+    private string GetActivityTypeName(int activityTypeId)
+    {
+        return activityTypes.FirstOrDefault(t => t.Id == activityTypeId)?.Name ?? "Unknown";
+    }
+
+    private string GetActivityTypeShortName(int activityTypeId)
+    {
+        var name = GetActivityTypeName(activityTypeId);
+        return name.Length > 8 ? name.Substring(0, 7) + "…" : name;
+    }
+
+    private string GetActivityBenefitClass(int activityTypeId)
+    {
+        var type = activityTypes.FirstOrDefault(t => t.Id == activityTypeId);
+        return type?.NetBenefit switch
+        {
+            NetBenefit.Positive => "benefit-positive",
+            NetBenefit.Negative => "benefit-negative",
+            _ => "benefit-neutral"
+        };
+    }
+
+    private void NavigateToActivities(DateTime date, int activityTypeId)
+    {
+        var dateStr = date.ToString("yyyy-MM-dd");
+        var activityTypeName = Uri.EscapeDataString(GetActivityTypeName(activityTypeId));
+        Navigation.NavigateTo($"activities?date={dateStr}&search={activityTypeName}");
+    }
+
+    private void NavigateToActivitiesForDay(DateTime date)
+    {
+        var dateStr = date.ToString("yyyy-MM-dd");
+        Navigation.NavigateTo($"activities?date={dateStr}");
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (infiniteScrollModule != null)
+        {
+            try
+            {
+                await infiniteScrollModule.InvokeVoidAsync("dispose");
+                await infiniteScrollModule.DisposeAsync();
+            }
+            catch
+            {
+                // Ignore disposal errors
+            }
+        }
+        objRef?.Dispose();
+    }
+}
