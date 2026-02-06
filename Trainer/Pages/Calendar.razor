@@ -242,8 +242,9 @@
             {
                 await LoadMonthActivities(nextMonth.Year, nextMonth.Month);
                 loadedMonths.Add((nextMonth.Year, nextMonth.Month));
-                oldestLoadedMonth = (nextMonth.Year, nextMonth.Month);
             }
+
+            oldestLoadedMonth = (nextMonth.Year, nextMonth.Month);
 
             // Check if there are still unloaded weeks
             hasMoreMonthsToLoad = availableWeekKeys.Any(wk => !loadedWeekKeys.Contains(wk)) && 
