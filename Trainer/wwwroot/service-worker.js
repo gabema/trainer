@@ -61,23 +61,42 @@ self.addEventListener('notificationclick', event => {
   const data = event.notification.data;
   const action = event.action;
   
-  // If notification body was clicked (no action), focus the app
+  // If notification body was clicked (no action), navigate to activity edit page
   if (!action) {
     event.waitUntil(
-      clients.matchAll({ type: 'window', includeUncontrolled: true })
-        .then(clientList => {
-          // Try to focus an existing window
-          for (let i = 0; i < clientList.length; i++) {
-            const client = clientList[i];
-            if (client.url && 'focus' in client) {
+      (async () => {
+        // Determine the URL to navigate to
+        let targetUrl = '/';
+        if (data && data.activityId !== undefined) {
+          targetUrl = `/activity/${data.activityId}`;
+        }
+        
+        // Try to find and navigate an existing window
+        const clientList = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+        
+        for (let i = 0; i < clientList.length; i++) {
+          const client = clientList[i];
+          if (client.url && 'focus' in client) {
+            // Try to navigate the existing window if supported
+            if ('navigate' in client && typeof client.navigate === 'function') {
+              await client.navigate(targetUrl);
               return client.focus();
             }
+            // If navigate is not available, focus the existing window
+            // and open the activity page in a new tab
+            await client.focus();
+            if (clients.openWindow) {
+              return clients.openWindow(targetUrl);
+            }
+            return;
           }
-          // If no window is open, open a new one
-          if (clients.openWindow) {
-            return clients.openWindow('/');
-          }
-        })
+        }
+        
+        // If no window is open, open a new one
+        if (clients.openWindow) {
+          return clients.openWindow(targetUrl);
+        }
+      })()
     );
     return;
   }
