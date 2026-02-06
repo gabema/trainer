@@ -154,7 +154,7 @@ self.addEventListener('notificationclick', event => {
             tag: tag,
             icon: '/favicon.png',
             badge: '/favicon.png',
-            requireInteraction: false,
+            requireInteraction: true,
             actions: [
               {
                 action: 'previous',
