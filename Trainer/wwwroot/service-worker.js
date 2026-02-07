@@ -225,7 +225,9 @@ self.addEventListener('notificationclick', event => {
 });
 
 // When a guided notification is dismissed, remove its state from IndexedDB to avoid indefinite accumulation.
-// Skip delete when the close was caused by showing a replacement (same tag) for Previous/Next.
+// Skip delete when: (1) close was caused by Previous/Next replacement, or (2) close was caused by
+// the client calling startGuidedNotification again (same tag) — in both cases another notification
+// with the same tag is now visible, so we must not delete the state.
 self.addEventListener('notificationclose', event => {
   const data = event.notification && event.notification.data;
   if (!data || data.activityId === undefined) {
@@ -239,6 +241,13 @@ self.addEventListener('notificationclose', event => {
   event.waitUntil(
     (async () => {
       try {
+        // If another notification with the same tag is visible, this close was due to replacement
+        // (either from Previous/Next in SW or from client startGuidedNotification). Do not delete.
+        const notifications = await self.registration.getNotifications();
+        const tag = `guided-${activityId}`;
+        if (notifications.some(n => n.tag === tag)) {
+          return;
+        }
         const db = await openGuidedNotificationsDb();
         const transaction = db.transaction([STORE_NAME], 'readwrite');
         const store = transaction.objectStore(STORE_NAME);
