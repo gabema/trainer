@@ -99,8 +99,21 @@ window.notificationHelper = {
         }
     },
 
-    // Clear guided notification state for an activity (e.g. when activity is deleted or notes changed)
+    // Clear guided notification state for an activity (e.g. when activity is deleted or notes changed).
+    // Dismisses any visible notification with the matching tag, then removes IndexedDB state.
     clearGuidedState: async function(activityId) {
+        const tag = `guided-${activityId}`;
+        try {
+            const registration = await this._getRegistration();
+            const notifications = await registration.getNotifications();
+            for (const n of notifications) {
+                if (n.tag === tag) {
+                    n.close();
+                }
+            }
+        } catch (error) {
+            console.error('Error closing guided notification:', error);
+        }
         await this._removeState(activityId);
     },
     
