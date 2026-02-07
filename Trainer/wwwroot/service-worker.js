@@ -140,7 +140,11 @@ self.addEventListener('notificationclick', event => {
     } else if (action === 'next') {
       newLineIndex = Math.min(totalLines - 1, currentLineIndex + 1);
     }
-    
+
+    if (newLineIndex === currentLineIndex) {
+      return;
+    }
+
     // Get state from IndexedDB
     event.waitUntil(
       (async () => {
