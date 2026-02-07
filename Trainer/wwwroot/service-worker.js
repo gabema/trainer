@@ -8,6 +8,10 @@ const DB_NAME = 'TrainerDB';
 const DB_VERSION = 1;
 const STORE_NAME = 'guidedNotifications';
 
+// When we show a replacement notification (same tag), the old one closes and fires notificationclose.
+// We must not delete state in that case. ActivityIds in this set skip the delete on next notificationclose.
+const skipCloseDeleteForActivityIds = new Set();
+
 /** Opens IndexedDB for guided notification state. Creates store on upgrade if needed. */
 function openGuidedNotificationsDb() {
   return new Promise((resolve, reject) => {
@@ -76,13 +80,14 @@ self.addEventListener('fetch', event => {
 
 // Notification click event - handle guided notification navigation
 self.addEventListener('notificationclick', event => {
-  event.notification.close();
-  
   const data = event.notification.data;
   const action = event.action;
   
-  // If notification body was clicked (no action), navigate to activity edit page
+  // If notification body was clicked (no action), close and navigate to activity edit page.
+  // Only close here for body click; for Previous/Next we replace the notification below, and closing
+  // first would race with notificationclose (delete state) vs our read of state.
   if (!action) {
+    event.notification.close();
     event.waitUntil(
       (async () => {
         // Determine the URL to navigate to (use basePath for subpath deployment)
@@ -173,6 +178,10 @@ self.addEventListener('notificationclick', event => {
             putRequest.onerror = () => reject(putRequest.error);
           });
           
+          // Replacing the notification (same tag) will close the current one and fire notificationclose.
+          // Tell notificationclose to skip deleting state for this activity.
+          skipCloseDeleteForActivityIds.add(activityId);
+          
           // Show updated notification (use basePath for subpath deployment)
           const baseUrl = basePath + (basePath.endsWith('/') ? '' : '/');
           const iconUrl = baseUrl + 'favicon.png';
@@ -211,13 +220,18 @@ self.addEventListener('notificationclick', event => {
   }
 });
 
-// When a guided notification is dismissed, remove its state from IndexedDB to avoid indefinite accumulation
+// When a guided notification is dismissed, remove its state from IndexedDB to avoid indefinite accumulation.
+// Skip delete when the close was caused by showing a replacement (same tag) for Previous/Next.
 self.addEventListener('notificationclose', event => {
   const data = event.notification && event.notification.data;
   if (!data || data.activityId === undefined) {
     return;
   }
   const activityId = data.activityId;
+  if (skipCloseDeleteForActivityIds.has(activityId)) {
+    skipCloseDeleteForActivityIds.delete(activityId);
+    return;
+  }
   event.waitUntil(
     (async () => {
       try {
