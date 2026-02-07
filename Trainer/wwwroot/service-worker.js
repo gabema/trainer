@@ -2,6 +2,26 @@
 // Detect base path from service worker location
 const basePath = self.location.pathname.replace(/\/[^/]*$/, '') || '/';
 const CACHE_NAME = 'trainer-v1';
+
+// IndexedDB constants for guided notifications (must match notification-helper.js)
+const DB_NAME = 'TrainerDB';
+const DB_VERSION = 1;
+const STORE_NAME = 'guidedNotifications';
+
+/** Opens IndexedDB for guided notification state. Creates store on upgrade if needed. */
+function openGuidedNotificationsDb() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: 'activityId' });
+      }
+    };
+  });
+}
 const urlsToCache = [
   basePath + (basePath.endsWith('/') ? '' : '/'),
   basePath + (basePath.endsWith('/') ? '' : '/') + 'index.html',
@@ -120,25 +140,11 @@ self.addEventListener('notificationclick', event => {
     event.waitUntil(
       (async () => {
         try {
-          const dbName = 'TrainerDB';
-          const storeName = 'guidedNotifications';
-          
-          // Open IndexedDB
-          const db = await new Promise((resolve, reject) => {
-            const request = indexedDB.open(dbName, 1);
-            request.onerror = () => reject(request.error);
-            request.onsuccess = () => resolve(request.result);
-            request.onupgradeneeded = (e) => {
-              const db = e.target.result;
-              if (!db.objectStoreNames.contains(storeName)) {
-                db.createObjectStore(storeName, { keyPath: 'activityId' });
-              }
-            };
-          });
+          const db = await openGuidedNotificationsDb();
           
           // Get current state
-          const transaction = db.transaction([storeName], 'readonly');
-          const store = transaction.objectStore(storeName);
+          const transaction = db.transaction([STORE_NAME], 'readonly');
+          const store = transaction.objectStore(STORE_NAME);
           const stateRequest = store.get(activityId);
           
           const state = await new Promise((resolve, reject) => {
@@ -154,8 +160,8 @@ self.addEventListener('notificationclick', event => {
           const newLine = notesLines[newLineIndex];
           
           // Update state
-          const writeTransaction = db.transaction([storeName], 'readwrite');
-          const writeStore = writeTransaction.objectStore(storeName);
+          const writeTransaction = db.transaction([STORE_NAME], 'readwrite');
+          const writeStore = writeTransaction.objectStore(STORE_NAME);
           await new Promise((resolve, reject) => {
             const putRequest = writeStore.put({
               activityId: activityId,
@@ -212,24 +218,12 @@ self.addEventListener('notificationclose', event => {
     return;
   }
   const activityId = data.activityId;
-  const dbName = 'TrainerDB';
-  const storeName = 'guidedNotifications';
   event.waitUntil(
     (async () => {
       try {
-        const db = await new Promise((resolve, reject) => {
-          const request = indexedDB.open(dbName, 1);
-          request.onerror = () => reject(request.error);
-          request.onsuccess = () => resolve(request.result);
-          request.onupgradeneeded = (e) => {
-            const db = e.target.result;
-            if (!db.objectStoreNames.contains(storeName)) {
-              db.createObjectStore(storeName, { keyPath: 'activityId' });
-            }
-          };
-        });
-        const transaction = db.transaction([storeName], 'readwrite');
-        const store = transaction.objectStore(storeName);
+        const db = await openGuidedNotificationsDb();
+        const transaction = db.transaction([STORE_NAME], 'readwrite');
+        const store = transaction.objectStore(STORE_NAME);
         await new Promise((resolve, reject) => {
           const request = store.delete(activityId);
           request.onsuccess = () => resolve();
