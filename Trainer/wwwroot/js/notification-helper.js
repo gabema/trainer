@@ -43,26 +43,23 @@ window.notificationHelper = {
         });
     },
     
-    // Store notification state
+    // Store notification state. Throws if IndexedDB write fails so the caller can avoid showing
+    // a notification whose Previous/Next buttons would be non-functional.
     _storeState: async function(activityId, currentLineIndex, notesLines) {
-        try {
-            const db = await this._initDB();
-            const transaction = db.transaction([this._storeName], 'readwrite');
-            const store = transaction.objectStore(this._storeName);
-            
-            await new Promise((resolve, reject) => {
-                const request = store.put({
-                    activityId: activityId,
-                    currentLineIndex: currentLineIndex,
-                    notesLines: notesLines,
-                    timestamp: Date.now()
-                });
-                request.onsuccess = () => resolve();
-                request.onerror = () => reject(request.error);
+        const db = await this._initDB();
+        const transaction = db.transaction([this._storeName], 'readwrite');
+        const store = transaction.objectStore(this._storeName);
+
+        await new Promise((resolve, reject) => {
+            const request = store.put({
+                activityId: activityId,
+                currentLineIndex: currentLineIndex,
+                notesLines: notesLines,
+                timestamp: Date.now()
             });
-        } catch (error) {
-            console.error('Error storing notification state:', error);
-        }
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+        });
     },
     
     // Get notification state (for potential resume or client-side checks)
