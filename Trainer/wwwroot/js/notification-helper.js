@@ -125,6 +125,20 @@ window.notificationHelper = {
         const registration = await navigator.serviceWorker.ready;
         return registration;
     },
+
+    // Resolve icon URL with base path for subpath deployment
+    _getIconUrl: function() {
+        const base = document.querySelector('base');
+        const href = base && base.getAttribute('href');
+        if (href) {
+            try {
+                const path = new URL(href, window.location.origin).pathname;
+                const basePath = path.endsWith('/') ? path.slice(0, -1) : path || '';
+                return (basePath ? basePath + '/' : '/') + 'favicon.png';
+            } catch (_) {}
+        }
+        return '/favicon.png';
+    },
     
     // Start guided notification
     startGuidedNotification: async function(activityId, notes) {
@@ -146,24 +160,25 @@ window.notificationHelper = {
         // Get service worker registration
         const registration = await this._getRegistration();
         
-        // Show first line notification
+        // Show first line notification (use base path for subpath deployment)
+        const iconUrl = this._getIconUrl();
         const tag = `guided-${activityId}`;
         const options = {
             body: notesLines[0],
             tag: tag,
-            icon: '/favicon.png',
-            badge: '/favicon.png',
+            icon: iconUrl,
+            badge: iconUrl,
             requireInteraction: true,
             actions: [
                 {
                     action: 'previous',
                     title: 'Previous',
-                    icon: '/favicon.png'
+                    icon: iconUrl
                 },
                 {
                     action: 'next',
                     title: 'Next',
-                    icon: '/favicon.png'
+                    icon: iconUrl
                 }
             ],
             data: {

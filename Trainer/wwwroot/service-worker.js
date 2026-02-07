@@ -167,24 +167,26 @@ self.addEventListener('notificationclick', event => {
             putRequest.onerror = () => reject(putRequest.error);
           });
           
-          // Show updated notification
+          // Show updated notification (use basePath for subpath deployment)
+          const baseUrl = basePath + (basePath.endsWith('/') ? '' : '/');
+          const iconUrl = baseUrl + 'favicon.png';
           const tag = `guided-${activityId}`;
           const options = {
             body: newLine,
             tag: tag,
-            icon: '/favicon.png',
-            badge: '/favicon.png',
+            icon: iconUrl,
+            badge: iconUrl,
             requireInteraction: true,
             actions: [
               {
                 action: 'previous',
                 title: 'Previous',
-                icon: '/favicon.png'
+                icon: iconUrl
               },
               {
                 action: 'next',
                 title: 'Next',
-                icon: '/favicon.png'
+                icon: iconUrl
               }
             ],
             data: {
