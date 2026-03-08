@@ -21,10 +21,10 @@ public class DateTimeHelperTests
     }
 
     [Theory]
-    [InlineData(12, 30, "12:30 pm")] // Exactly 2 hours ago (14:30 - 2h = 12:30)
-    [InlineData(11, 30, "11:30 am")] // 3 hours ago
-    [InlineData(2, 25, "2:25 am")]   // Early morning same day
-    [InlineData(0, 15, "12:15 am")]  // Midnight + 15m same day
+    [InlineData(12, 30, "12:30 PM")] // Exactly 2 hours ago (14:30 - 2h = 12:30)
+    [InlineData(11, 30, "11:30 AM")] // 3 hours ago
+    [InlineData(2, 25, "2:25 AM")]   // Early morning same day
+    [InlineData(0, 15, "12:15 AM")]  // Midnight + 15m same day
     public void FormatWhenDateTime_SameDayOlderThan2Hours_ReturnsTimeOnly(int hour, int minute, string expected)
     {
         var when = new DateTime(_now.Year, _now.Month, _now.Day, hour, minute, 0);
@@ -33,10 +33,10 @@ public class DateTimeHelperTests
     }
 
     [Theory]
-    [InlineData(8, 30, "yesterday @ 8:30 am")]
-    [InlineData(15, 42, "yesterday @ 3:42 pm")]
-    [InlineData(2, 25, "yesterday @ 2:25 am")]
-    [InlineData(0, 0, "yesterday @ 12:00 am")]
+    [InlineData(8, 30, "yesterday @ 8:30 AM")]
+    [InlineData(15, 42, "yesterday @ 3:42 PM")]
+    [InlineData(2, 25, "yesterday @ 2:25 AM")]
+    [InlineData(0, 0, "yesterday @ 12:00 AM")]
     public void FormatWhenDateTime_Yesterday_ReturnsYesterdayAtTime(int hour, int minute, string expected)
     {
         var yesterday = _now.AddDays(-1);
@@ -46,11 +46,11 @@ public class DateTimeHelperTests
     }
 
     [Theory]
-    [InlineData(2025, 1, 13, 10, 22, "Jan 13 @ 10:22 am")] // Two days ago
-    [InlineData(2025, 1, 8, 9, 15, "Jan 8 @ 9:15 am")]     // One week ago
-    [InlineData(2024, 12, 15, 16, 45, "Dec 15 @ 4:45 pm")] // One month ago
-    [InlineData(2024, 1, 10, 10, 22, "Jan 10 @ 10:22 am")] // One year ago
-    [InlineData(2025, 1, 20, 10, 0, "Jan 20 @ 10:00 am")]  // Future date
+    [InlineData(2025, 1, 13, 10, 22, "Jan 13 @ 10:22 AM")] // Two days ago
+    [InlineData(2025, 1, 8, 9, 15, "Jan 8 @ 9:15 AM")]     // One week ago
+    [InlineData(2024, 12, 15, 16, 45, "Dec 15 @ 4:45 PM")] // One month ago
+    [InlineData(2024, 1, 10, 10, 22, "Jan 10 @ 10:22 AM")] // One year ago
+    [InlineData(2025, 1, 20, 10, 0, "Jan 20 @ 10:00 AM")]  // Future date
     public void FormatWhenDateTime_OtherDates_ReturnsShortDateAndTime(int year, int month, int day, int hour, int minute, string expected)
     {
         var when = new DateTime(year, month, day, hour, minute, 0);

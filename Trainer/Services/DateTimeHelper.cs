@@ -1,8 +1,9 @@
 namespace Trainer.Services;
 
+using System.Globalization;
 using Trainer.Models;
 
-public static class DateTimeHelper
+internal static class DateTimeHelper
 {
     /// <summary>
     /// Formats a DateTime relative to the current time according to the specified rules:
@@ -22,7 +23,7 @@ public static class DateTimeHelper
         // Handle future dates - always show short date and time format
         if (when > currentTime)
         {
-            return $"{when.ToString("MMM d")} @ {when.ToString("h:mm tt").ToLower()}";
+            return $"{when.ToString("MMM d", CultureInfo.InvariantCulture)} @ {when.ToString("h:mm tt", CultureInfo.InvariantCulture).ToUpperInvariant()}";
         }
 
         // Less than 2 hours ago: show "X minutes ago"
@@ -36,7 +37,7 @@ public static class DateTimeHelper
         if (when.Date == currentTime.Date)
         {
             // More than 2 hours ago but same day: show time only
-            return when.ToString("h:mm tt").ToLower();
+            return when.ToString("h:mm tt", CultureInfo.InvariantCulture).ToUpperInvariant();
         }
 
         // Check if yesterday
@@ -44,11 +45,11 @@ public static class DateTimeHelper
         if (when.Date == yesterday)
         {
             // Yesterday: show "yesterday @ {time}"
-            return $"yesterday @ {when.ToString("h:mm tt").ToLower()}";
+            return $"yesterday @ {when.ToString("h:mm tt", CultureInfo.InvariantCulture).ToUpperInvariant()}";
         }
 
         // More than yesterday ago: show short date and time
-        return $"{when.ToString("MMM d")} @ {when.ToString("h:mm tt").ToLower()}";
+        return $"{when.ToString("MMM d", CultureInfo.InvariantCulture)} @ {when.ToString("h:mm tt", CultureInfo.InvariantCulture).ToUpperInvariant()}";
     }
 
     public static (DateTime StartDate, DateTime EndDate) GetDateRange(DurationOption duration, DateTime? now = null)

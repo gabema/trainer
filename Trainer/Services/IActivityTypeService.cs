@@ -2,7 +2,7 @@ namespace Trainer.Services;
 
 using Trainer.Models;
 
-public interface IActivityTypeService
+internal interface IActivityTypeService
 {
     Task<List<ActivityType>> GetAllAsync();
     Task<ActivityType?> GetByIdAsync(int id);

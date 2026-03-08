@@ -2,21 +2,22 @@ namespace Trainer.Services;
 
 using Trainer.Models;
 
-public class GoalService : IGoalService
+internal class GoalService : IGoalService
 {
     public int? GetGoalAmount(ActivityType activityType, DurationOption duration)
     {
+        ArgumentNullException.ThrowIfNull(activityType);
         return duration switch
         {
             DurationOption.Last24Hours => activityType.DailyAmount,
             DurationOption.Last7Days => activityType.WeeklyAmount,
             DurationOption.Week => activityType.WeeklyAmount,
-            DurationOption.Last4Weeks => GetLast4WeeksGoal(activityType),
+            DurationOption.Last4Weeks => GoalService.GetLast4WeeksGoal(activityType),
             _ => null
         };
     }
 
-    private int? GetLast4WeeksGoal(ActivityType activityType)
+    private static int? GetLast4WeeksGoal(ActivityType activityType)
     {
         if (activityType.WeeklyAmount.HasValue)
         {

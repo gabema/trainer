@@ -17,4 +17,4 @@ builder.Services.AddScoped<IActivityTypeService, ActivityTypeService>();
 builder.Services.AddScoped<IGoalService, GoalService>();
 builder.Services.AddScoped<IExportImportService, ExportImportService>();
 
-await builder.Build().RunAsync();
+await builder.Build().RunAsync().ConfigureAwait(false);

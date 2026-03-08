@@ -2,7 +2,7 @@ namespace Trainer.Services;
 
 using Trainer.Models;
 
-public interface IGoalService
+internal interface IGoalService
 {
     int? GetGoalAmount(ActivityType activityType, DurationOption duration);
 }
