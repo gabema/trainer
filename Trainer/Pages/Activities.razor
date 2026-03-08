@@ -9,17 +9,6 @@
 
 <PageTitle>Activities - Trainer</PageTitle>
 
-<div class="header-area">
-    <div class="d-flex align-items-center">
-        <button class="btn btn-link p-0 me-3" @onclick="GoBack" style="text-decoration: none; color: inherit;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
-                <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/>
-            </svg>
-        </button>
-        <h1 class="mb-0">Activities</h1>
-    </div>
-</div>
-
 <div class="container mt-4">
     <div class="row mb-3">
         <div class="col-md-12">
@@ -28,7 +17,7 @@
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label">Search</label>
-                            <input type="text" class="form-control" value="@searchTerm" @oninput="OnSearchTermChanged" placeholder="Search activities..." />
+                            <input type="text" class="form-control" value="@searchTerm" @oninput="OnSearchTermChanged" placeholder="Search by activity type, notes, or amount..." />
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Date Duration</label>
@@ -38,9 +27,23 @@
                                 <option value="@((int)DateFilterOption.CurrentWeek)">Current Week</option>
                                 <option value="@((int)DateFilterOption.Last7Days)">Last 7 days</option>
                                 <option value="@((int)DateFilterOption.Last4Weeks)">Last 4 Weeks</option>
+                                <option value="@((int)DateFilterOption.Custom)">Custom Range</option>
                             </select>
                         </div>
                     </div>
+                    @if (selectedDateFilter == DateFilterOption.Custom)
+                    {
+                        <div class="row g-3 mt-2">
+                            <div class="col-md-6">
+                                <label class="form-label">Start Date</label>
+                                <input type="date" class="form-control" value="@customStartDate?.ToString("yyyy-MM-dd")" @onchange="OnCustomStartDateChanged" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">End Date</label>
+                                <input type="date" class="form-control" value="@customEndDate?.ToString("yyyy-MM-dd")" @onchange="OnCustomEndDateChanged" />
+                            </div>
+                        </div>
+                    }
                     <div class="mt-3">
                         <button class="btn btn-primary" @onclick="AddNewActivity">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="me-1">
@@ -98,17 +101,28 @@
 </div>
 
 @code {
+    [SupplyParameterFromQuery(Name = "date")]
+    public string? FilterDate { get; set; }
+
+    [SupplyParameterFromQuery(Name = "search")]
+    public string? FilterSearch { get; set; }
+
     private List<Activity> allLoadedActivities = new();
     private List<Activity> displayedActivities = new();
     private List<ActivityType> activityTypes = new();
     private string searchTerm = string.Empty;
-    private DateFilterOption selectedDateFilter = DateFilterOption.AllTime;
+    private DateFilterOption selectedDateFilter = DateFilterOption.Last4Weeks;
+    private DateTime? customStartDate;
+    private DateTime? customEndDate;
     private HashSet<string> loadedWeekKeys = new();
     private HashSet<string> availableWeekKeys = new();
     private bool isLoading = false;
     private bool hasMoreWeeksToLoad = true;
     private DotNetObjectReference<Activities>? objRef;
     private IJSObjectReference? infiniteScrollModule;
+    private bool _initialized = false;
+    private string? _lastFilterDate;
+    private string? _lastFilterSearch;
 
     private enum DateFilterOption
     {
@@ -116,13 +130,47 @@
         Last24Hours,
         CurrentWeek,
         Last7Days,
-        Last4Weeks
+        Last4Weeks,
+        Custom
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Check if query parameters have changed
+        bool parametersChanged = FilterDate != _lastFilterDate || FilterSearch != _lastFilterSearch;
+        
+        if (parametersChanged)
+        {
+            // Store old values before updating (needed for reset logic in ApplyQueryParameters)
+            var oldFilterDate = _lastFilterDate;
+            var oldFilterSearch = _lastFilterSearch;
+            
+            // Update to new values
+            _lastFilterDate = FilterDate;
+            _lastFilterSearch = FilterSearch;
+            
+            // Only apply query parameters if component is already initialized
+            // (OnAfterRenderAsync handles the first render case)
+            if (_initialized)
+            {
+                ApplyQueryParameters(oldFilterDate, oldFilterSearch);
+                
+                // Reset and reload data when parameters change
+                allLoadedActivities.Clear();
+                loadedWeekKeys.Clear();
+                availableWeekKeys.Clear();
+                hasMoreWeeksToLoad = true;
+                
+                await LoadInitialWeeks();
+            }
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
+        if (firstRender && !_initialized)
         {
+            _initialized = true;
             objRef = DotNetObjectReference.Create(this);
             try
             {
@@ -135,7 +183,50 @@
             }
             
             await LoadActivityTypes();
+            
+            // Store initial parameter values
+            _lastFilterDate = FilterDate;
+            _lastFilterSearch = FilterSearch;
+            
+            // Apply query parameters if present (no old values on first render)
+            ApplyQueryParameters(null, null);
+            
             await LoadInitialWeeks();
+        }
+    }
+
+    private void ApplyQueryParameters(string? oldFilterDate, string? oldFilterSearch)
+    {
+        // Apply search filter from query param
+        if (!string.IsNullOrEmpty(FilterSearch))
+        {
+            searchTerm = FilterSearch;
+        }
+        else
+        {
+            // Reset search term when query param is cleared (only if it was previously set)
+            if (!string.IsNullOrEmpty(oldFilterSearch))
+            {
+                searchTerm = string.Empty;
+            }
+        }
+
+        // Apply date filter from query param
+        if (!string.IsNullOrEmpty(FilterDate) && DateTime.TryParse(FilterDate, out var date))
+        {
+            selectedDateFilter = DateFilterOption.Custom;
+            customStartDate = date.Date;
+            customEndDate = date.Date.AddDays(1).AddSeconds(-1);
+        }
+        else
+        {
+            // Reset date filter when query param is cleared (only if it was previously set)
+            if (!string.IsNullOrEmpty(oldFilterDate))
+            {
+                selectedDateFilter = DateFilterOption.Last4Weeks;
+                customStartDate = null;
+                customEndDate = null;
+            }
         }
     }
 
@@ -338,6 +429,12 @@
                 return (now.AddDays(-7), now);
             case DateFilterOption.Last4Weeks:
                 return (now.AddDays(-28), now);
+            case DateFilterOption.Custom:
+                if (customStartDate.HasValue && customEndDate.HasValue)
+                {
+                    return (customStartDate.Value.Date, customEndDate.Value.Date.AddHours(23).AddMinutes(59).AddSeconds(59));
+                }
+                return (null, null);
             default:
                 return (null, null); // All time
         }
@@ -357,7 +454,7 @@
             }
         }
 
-        // Apply search filter
+        // Apply search filter (searches activity type name, notes, and amount)
         if (!string.IsNullOrWhiteSpace(searchTerm))
         {
             var searchLower = searchTerm.ToLowerInvariant();
@@ -413,6 +510,19 @@
             selectedDateFilter = (DateFilterOption)filterInt;
         }
         
+        // Reset custom dates when switching away from custom
+        if (selectedDateFilter != DateFilterOption.Custom)
+        {
+            customStartDate = null;
+            customEndDate = null;
+        }
+        else
+        {
+            // Set default custom range to last 7 days
+            customEndDate = DateTime.Now.Date;
+            customStartDate = DateTime.Now.AddDays(-7).Date;
+        }
+        
         // Reset loaded weeks when filter changes
         allLoadedActivities.Clear();
         loadedWeekKeys.Clear();
@@ -420,6 +530,36 @@
         hasMoreWeeksToLoad = true;
         
         await LoadInitialWeeks();
+    }
+
+    private async Task OnCustomStartDateChanged(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var date))
+        {
+            customStartDate = date;
+            await ReloadWithCustomRange();
+        }
+    }
+
+    private async Task OnCustomEndDateChanged(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var date))
+        {
+            customEndDate = date;
+            await ReloadWithCustomRange();
+        }
+    }
+
+    private async Task ReloadWithCustomRange()
+    {
+        if (customStartDate.HasValue && customEndDate.HasValue)
+        {
+            allLoadedActivities.Clear();
+            loadedWeekKeys.Clear();
+            availableWeekKeys.Clear();
+            hasMoreWeeksToLoad = true;
+            await LoadInitialWeeks();
+        }
     }
 
     private string GetNavigationPath(string path)
@@ -433,11 +573,6 @@
     private void AddNewActivity()
     {
         Navigation.NavigateTo(GetNavigationPath("/activity"));
-    }
-
-    private void GoBack()
-    {
-        Navigation.NavigateTo(GetNavigationPath("/"));
     }
 
     private async Task HandleActivityDeleted()
