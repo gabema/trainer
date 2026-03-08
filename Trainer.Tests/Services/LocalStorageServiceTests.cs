@@ -1,9 +1,9 @@
+namespace Trainer.Tests.Services;
+
 using Moq;
 using Microsoft.JSInterop;
 using Trainer.Services;
 using System.Text.Json;
-
-namespace Trainer.Tests.Services;
 
 public class LocalStorageServiceTests
 {
@@ -93,4 +93,3 @@ public class LocalStorageServiceTests
         public int Value { get; set; }
     }
 }
-

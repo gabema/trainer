@@ -1,8 +1,8 @@
+namespace Trainer.Tests.Services;
+
 using Moq;
 using Trainer.Models;
 using Trainer.Services;
-
-namespace Trainer.Tests.Services;
 
 public class ActivityServiceTests
 {
@@ -505,4 +505,3 @@ public class ActivityServiceTests
         Assert.NotNull(importedActivity);
     }
 }
-

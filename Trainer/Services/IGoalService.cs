@@ -1,6 +1,6 @@
-using Trainer.Models;
-
 namespace Trainer.Services;
+
+using Trainer.Models;
 
 public interface IGoalService
 {
