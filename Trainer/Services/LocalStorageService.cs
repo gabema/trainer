@@ -1,7 +1,7 @@
+namespace Trainer.Services;
+
 using Microsoft.JSInterop;
 using System.Text.Json;
-
-namespace Trainer.Services;
 
 public class LocalStorageService(IJSRuntime jsRuntime) : IStorageService
 {
@@ -44,4 +44,3 @@ public class LocalStorageService(IJSRuntime jsRuntime) : IStorageService
         await _jsRuntime.InvokeVoidAsync("localStorage.clear");
     }
 }
-

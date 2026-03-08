@@ -1,7 +1,7 @@
+namespace Trainer.Services;
+
 using Microsoft.JSInterop;
 using System.Text.Json;
-
-namespace Trainer.Services;
 
 public class IndexedDbStorageService(IJSRuntime jsRuntime) : IStorageService
 {
@@ -335,4 +335,3 @@ public class IndexedDbStorageService(IJSRuntime jsRuntime) : IStorageService
         }
     }
 }
-

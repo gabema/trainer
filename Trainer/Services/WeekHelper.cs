@@ -1,6 +1,6 @@
-using System.Globalization;
-
 namespace Trainer.Services;
+
+using System.Globalization;
 
 public static class WeekHelper
 {
@@ -104,4 +104,3 @@ public static class WeekHelper
         throw new ArgumentException($"Invalid storage key format: {storageKey}", nameof(storageKey));
     }
 }
-

@@ -1,9 +1,9 @@
+namespace Trainer.Tests.Services;
+
 using Moq;
 using Trainer.Models;
 using Trainer.Services;
 using System.Text.Json;
-
-namespace Trainer.Tests.Services;
 
 public class ExportImportServiceTests
 {
@@ -255,4 +255,3 @@ public class ExportImportServiceTests
         _activityServiceMock.Verify(x => x.RecalculateNextIdAsync(), Times.Never, "RecalculateNextIdAsync should not be called when no activities are imported");
     }
 }
-

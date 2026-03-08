@@ -1,7 +1,7 @@
+namespace Trainer.Tests.Services;
+
 using Trainer.Models;
 using Trainer.Services;
-
-namespace Trainer.Tests.Services;
 
 public class GoalServiceTests
 {

@@ -1,8 +1,8 @@
+namespace Trainer.Tests.Services;
+
 using Moq;
 using Trainer.Models;
 using Trainer.Services;
-
-namespace Trainer.Tests.Services;
 
 public class ActivityTypeServiceTests
 {
@@ -272,4 +272,3 @@ public class ActivityTypeServiceTests
         Assert.Equal("Zebra", sortedResult[3].Name);
     }
 }
-
