@@ -247,11 +247,37 @@
     private string GetAmountDisplay(Activity activity)
     {
         var activityType = activityTypes.FirstOrDefault(t => t.Id == activity.ActivityTypeId);
-        if (activityType?.Unit != null)
+        var amountText = activityType?.Unit != null
+            ? $"{activity.Amount} {activityType.Unit}"
+            : activity.Amount.ToString();
+
+        var durationText = FormatDuration(activity.DurationSeconds);
+        if (!string.IsNullOrEmpty(durationText))
         {
-            return $"{activity.Amount} {activityType.Unit}";
+            return $"{amountText} for {durationText}";
         }
-        return activity.Amount.ToString();
+
+        return amountText;
+    }
+
+    private static string? FormatDuration(int? durationSeconds)
+    {
+        if (!durationSeconds.HasValue || durationSeconds.Value <= 0)
+        {
+            return null;
+        }
+
+        var totalSeconds = durationSeconds.Value;
+        var minutes = totalSeconds / 60;
+        var seconds = totalSeconds % 60;
+
+        if (minutes == 0)
+        {
+            // Seconds only (e.g., "20s")
+            return $"{seconds}s";
+        }
+
+        return $"{minutes:0}m {seconds:00}s";
     }
 
 

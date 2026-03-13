@@ -102,7 +102,7 @@ public class ActivityServiceTests
     {
         // Arrange
         var activities = new List<Activity>();
-        var newActivity = new Activity { ActivityTypeId = 1, When = DateTime.Now, Amount = 100, Notes = "New" };
+        var newActivity = new Activity { ActivityTypeId = 1, When = DateTime.Now, Amount = 100, Notes = "New", DurationSeconds = 120 };
         var weekKey = WeekHelper.GetWeekKey(newActivity.When);
 
         _storageServiceMock
@@ -124,6 +124,7 @@ public class ActivityServiceTests
 
         // Assert
         Assert.True(result.Id > 0);
+        Assert.Equal(120, result.DurationSeconds);
         Assert.Single(savedActivities);
         _storageServiceMock.Verify(x => x.SetActivitiesForWeekAsync(weekKey, It.IsAny<List<Activity>>()), Times.Once);
     }
@@ -135,10 +136,10 @@ public class ActivityServiceTests
         var testDate = DateTime.Now;
         var activities = new List<Activity>
         {
-            new() { Id = 1, ActivityTypeId = 1, When = testDate, Amount = 100, Notes = "Original" }
+            new() { Id = 1, ActivityTypeId = 1, When = testDate, Amount = 100, Notes = "Original", DurationSeconds = 60 }
         };
         var weekKey = WeekHelper.GetWeekKey(testDate);
-        var updatedActivity = new Activity { Id = 1, ActivityTypeId = 1, When = testDate, Amount = 200, Notes = "Updated" };
+        var updatedActivity = new Activity { Id = 1, ActivityTypeId = 1, When = testDate, Amount = 200, Notes = "Updated", DurationSeconds = 180 };
 
         _storageServiceMock
             .Setup(x => x.GetItemAsync<List<Activity>>("activities"))
@@ -161,6 +162,7 @@ public class ActivityServiceTests
         Assert.Single(savedActivities);
         Assert.Equal("Updated", savedActivities[0].Notes);
         Assert.Equal(200, savedActivities[0].Amount);
+        Assert.Equal(180, savedActivities[0].DurationSeconds);
         _storageServiceMock.Verify(x => x.SetActivitiesForWeekAsync(weekKey, It.IsAny<List<Activity>>()), Times.Once);
     }
 
