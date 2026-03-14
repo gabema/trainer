@@ -1,6 +1,6 @@
 namespace Trainer.Services;
 
-public interface IExportImportService
+internal interface IExportImportService
 {
     Task<string> ExportDataAsync();
     Task ImportDataAsync(string jsonData);

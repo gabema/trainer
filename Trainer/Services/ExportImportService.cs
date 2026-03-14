@@ -1,11 +1,12 @@
+namespace Trainer.Services;
+
 using System.Text.Json;
 using Trainer.Models;
 
-namespace Trainer.Services;
-
-public class ExportImportService(IStorageService storageService) : IExportImportService
+internal class ExportImportService(IStorageService storageService, IActivityService activityService) : IExportImportService
 {
     private readonly IStorageService _storageService = storageService;
+    private readonly IActivityService _activityService = activityService;
     private readonly JsonSerializerOptions _jsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -14,7 +15,7 @@ public class ExportImportService(IStorageService storageService) : IExportImport
 
     public async Task<string> ExportDataAsync()
     {
-        var activityTypes = await _storageService.GetItemAsync<List<ActivityType>>("activityTypes") ?? new List<ActivityType>();
+        var activityTypes = await _storageService.GetItemAsync<List<ActivityType>>("activityTypes").ConfigureAwait(false) ?? new List<ActivityType>();
 
         // Export activities in weekly format
         Dictionary<string, List<Activity>> activitiesByWeek;
@@ -22,7 +23,7 @@ public class ExportImportService(IStorageService storageService) : IExportImport
         if (_storageService is IndexedDbStorageService indexedDbService)
         {
             // Get all week keys
-            var allActivities = await _storageService.GetItemAsync<List<Activity>>("activities") ?? new List<Activity>();
+            var allActivities = await _storageService.GetItemAsync<List<Activity>>("activities").ConfigureAwait(false) ?? new List<Activity>();
             
             // Group by week for export format
             activitiesByWeek = allActivities
@@ -32,7 +33,7 @@ public class ExportImportService(IStorageService storageService) : IExportImport
         else
         {
             // Fallback for other storage services - group existing activities
-            var activities = await _storageService.GetItemAsync<List<Activity>>("activities") ?? new List<Activity>();
+            var activities = await _storageService.GetItemAsync<List<Activity>>("activities").ConfigureAwait(false) ?? new List<Activity>();
             activitiesByWeek = activities
                 .GroupBy(a => WeekHelper.GetWeekKey(a.When))
                 .ToDictionary(g => g.Key, g => g.ToList());
@@ -54,6 +55,7 @@ public class ExportImportService(IStorageService storageService) : IExportImport
         {
             using var jsonDoc = JsonDocument.Parse(jsonData);
             var root = jsonDoc.RootElement;
+            bool activitiesImported = false;
 
             // Handle activities - support both old format (array) and new format (weekly object)
             if (root.TryGetProperty("activities", out var activitiesElement))
@@ -64,7 +66,8 @@ public class ExportImportService(IStorageService storageService) : IExportImport
                     var activities = JsonSerializer.Deserialize<List<Activity>>(activitiesElement, _jsonOptions);
                     if (activities != null)
                     {
-                        await _storageService.SetItemAsync("activities", activities);
+                        await _storageService.SetItemAsync("activities", activities).ConfigureAwait(false);
+                        activitiesImported = true;
                     }
                 }
                 else if (activitiesElement.ValueKind == JsonValueKind.Object)
@@ -76,14 +79,16 @@ public class ExportImportService(IStorageService storageService) : IExportImport
                         // Store each week's activities
                         foreach (var weekGroup in activitiesByWeek)
                         {
-                            await indexedDbService.SetActivitiesForWeekAsync(weekGroup.Key, weekGroup.Value);
+                            await indexedDbService.SetActivitiesForWeekAsync(weekGroup.Key, weekGroup.Value).ConfigureAwait(false);
                         }
+                        activitiesImported = true;
                     }
                     else if (activitiesByWeek != null)
                     {
                         // Flatten and store for non-IndexedDB storage
                         var allActivities = activitiesByWeek.Values.SelectMany(x => x).ToList();
-                        await _storageService.SetItemAsync("activities", allActivities);
+                        await _storageService.SetItemAsync("activities", allActivities).ConfigureAwait(false);
+                        activitiesImported = true;
                     }
                 }
             }
@@ -95,7 +100,8 @@ public class ExportImportService(IStorageService storageService) : IExportImport
                     var activities = JsonSerializer.Deserialize<List<Activity>>(activitiesElementPascal, _jsonOptions);
                     if (activities != null)
                     {
-                        await _storageService.SetItemAsync("activities", activities);
+                        await _storageService.SetItemAsync("activities", activities).ConfigureAwait(false);
+                        activitiesImported = true;
                     }
                 }
                 else if (activitiesElementPascal.ValueKind == JsonValueKind.Object)
@@ -105,13 +111,15 @@ public class ExportImportService(IStorageService storageService) : IExportImport
                     {
                         foreach (var weekGroup in activitiesByWeek)
                         {
-                            await indexedDbService.SetActivitiesForWeekAsync(weekGroup.Key, weekGroup.Value);
+                            await indexedDbService.SetActivitiesForWeekAsync(weekGroup.Key, weekGroup.Value).ConfigureAwait(false);
                         }
+                        activitiesImported = true;
                     }
                     else if (activitiesByWeek != null)
                     {
                         var allActivities = activitiesByWeek.Values.SelectMany(x => x).ToList();
-                        await _storageService.SetItemAsync("activities", allActivities);
+                        await _storageService.SetItemAsync("activities", allActivities).ConfigureAwait(false);
+                        activitiesImported = true;
                     }
                 }
             }
@@ -122,7 +130,7 @@ public class ExportImportService(IStorageService storageService) : IExportImport
                 var activityTypes = JsonSerializer.Deserialize<List<ActivityType>>(activityTypesElement, _jsonOptions);
                 if (activityTypes != null)
                 {
-                    await _storageService.SetItemAsync("activityTypes", activityTypes);
+                    await _storageService.SetItemAsync("activityTypes", activityTypes).ConfigureAwait(false);
                 }
             }
             else if (root.TryGetProperty("ActivityTypes", out var activityTypesElementPascal))
@@ -130,8 +138,14 @@ public class ExportImportService(IStorageService storageService) : IExportImport
                 var activityTypes = JsonSerializer.Deserialize<List<ActivityType>>(activityTypesElementPascal, _jsonOptions);
                 if (activityTypes != null)
                 {
-                    await _storageService.SetItemAsync("activityTypes", activityTypes);
+                    await _storageService.SetItemAsync("activityTypes", activityTypes).ConfigureAwait(false);
                 }
+            }
+
+            // Recalculate nextId after importing activities to prevent ID collisions
+            if (activitiesImported)
+            {
+                await _activityService.RecalculateNextIdAsync().ConfigureAwait(false);
             }
         }
         catch (Exception ex)
@@ -140,4 +154,3 @@ public class ExportImportService(IStorageService storageService) : IExportImport
         }
     }
 }
-

@@ -1,8 +1,8 @@
-using Trainer.Models;
-
 namespace Trainer.Services;
 
-public interface IActivityService
+using Trainer.Models;
+
+internal interface IActivityService
 {
     Task<List<Activity>> GetAllAsync(DateTime? startDate = null, DateTime? endDate = null);
     Task<Activity?> GetByIdAsync(int id);
@@ -11,5 +11,5 @@ public interface IActivityService
     Task DeleteAsync(int id);
     Task<List<Activity>> GetByActivityTypeIdAsync(int activityTypeId);
     Task<List<string>> GetAllAvailableWeekKeysAsync();
+    Task RecalculateNextIdAsync();
 }
-

@@ -1,8 +1,8 @@
-using Trainer.Models;
-
 namespace Trainer.Services;
 
-public interface IActivityTypeService
+using Trainer.Models;
+
+internal interface IActivityTypeService
 {
     Task<List<ActivityType>> GetAllAsync();
     Task<ActivityType?> GetByIdAsync(int id);
@@ -10,4 +10,3 @@ public interface IActivityTypeService
     Task UpdateAsync(ActivityType activityType);
     Task DeleteAsync(int id);
 }
-

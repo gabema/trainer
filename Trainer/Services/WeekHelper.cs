@@ -1,12 +1,12 @@
-using System.Globalization;
-
 namespace Trainer.Services;
 
-public static class WeekHelper
+using System.Globalization;
+
+internal static class WeekHelper
 {
     private static readonly Calendar Calendar = CultureInfo.InvariantCulture.Calendar;
-    private static readonly CalendarWeekRule WeekRule = CalendarWeekRule.FirstFourDayWeek;
-    private static readonly DayOfWeek FirstDayOfWeek = DayOfWeek.Monday;
+    private const CalendarWeekRule WeekRule = CalendarWeekRule.FirstFourDayWeek;
+    private const DayOfWeek FirstDayOfWeek = DayOfWeek.Monday;
 
     /// <summary>
     /// Converts a DateTime to ISO 8601 week format (YYYY.WW)
@@ -24,6 +24,7 @@ public static class WeekHelper
     /// </summary>
     public static DateTime GetWeekStartDate(string weekKey)
     {
+        ArgumentNullException.ThrowIfNull(weekKey);
         var parts = weekKey.Split('.');
         if (parts.Length != 2 || !int.TryParse(parts[0], out var year) || !int.TryParse(parts[1], out var week))
         {
@@ -97,11 +98,11 @@ public static class WeekHelper
     /// </summary>
     public static string ExtractWeekKey(string storageKey)
     {
-        if (storageKey.StartsWith("activities-"))
+        ArgumentNullException.ThrowIfNull(storageKey);
+        if (storageKey.StartsWith("activities-", StringComparison.Ordinal))
         {
             return storageKey.Substring("activities-".Length);
         }
         throw new ArgumentException($"Invalid storage key format: {storageKey}", nameof(storageKey));
     }
 }
-

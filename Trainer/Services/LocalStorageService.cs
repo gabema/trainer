@@ -1,9 +1,9 @@
+namespace Trainer.Services;
+
 using Microsoft.JSInterop;
 using System.Text.Json;
 
-namespace Trainer.Services;
-
-public class LocalStorageService(IJSRuntime jsRuntime) : IStorageService
+internal class LocalStorageService(IJSRuntime jsRuntime) : IStorageService
 {
     private readonly IJSRuntime _jsRuntime = jsRuntime;
     private readonly JsonSerializerOptions _jsonOptions = new()
@@ -16,32 +16,31 @@ public class LocalStorageService(IJSRuntime jsRuntime) : IStorageService
     {
         try
         {
-            var json = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", key);
+            var json = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", key).ConfigureAwait(false);
             if (string.IsNullOrEmpty(json))
-                return default(T);
+                return default;
 
             return JsonSerializer.Deserialize<T>(json, _jsonOptions);
         }
-        catch
+        catch (JSException)
         {
-            return default(T);
+            return default;
         }
     }
 
     public async Task SetItemAsync<T>(string key, T value)
     {
         var json = JsonSerializer.Serialize(value, _jsonOptions);
-        await _jsRuntime.InvokeVoidAsync("localStorage.setItem", key, json);
+        await _jsRuntime.InvokeVoidAsync("localStorage.setItem", key, json).ConfigureAwait(false);
     }
 
     public async Task RemoveItemAsync(string key)
     {
-        await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", key);
+        await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", key).ConfigureAwait(false);
     }
 
     public async Task ClearAsync()
     {
-        await _jsRuntime.InvokeVoidAsync("localStorage.clear");
+        await _jsRuntime.InvokeVoidAsync("localStorage.clear").ConfigureAwait(false);
     }
 }
-
