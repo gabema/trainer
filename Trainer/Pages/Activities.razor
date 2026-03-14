@@ -16,8 +16,7 @@
                 <div class="card-body">
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label class="form-label">Search</label>
-                            <input type="text" class="form-control" value="@searchTerm" @oninput="OnSearchTermChanged" placeholder="Search by activity type, notes, or amount..." />
+                            <SearchFilter Value="@searchTerm" ValueChanged="OnSearchTermChanged" Placeholder="Search by activity type, notes, or amount..." />
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Date Duration</label>
@@ -455,18 +454,7 @@
         }
 
         // Apply search filter (searches activity type name, notes, and amount)
-        if (!string.IsNullOrWhiteSpace(searchTerm))
-        {
-            var searchLower = searchTerm.ToLowerInvariant();
-            filtered = filtered.Where(a =>
-            {
-                var activityType = activityTypes.FirstOrDefault(t => t.Id == a.ActivityTypeId);
-                var typeName = activityType?.Name ?? "";
-                return typeName.ToLowerInvariant().Contains(searchLower) ||
-                       a.Notes.ToLowerInvariant().Contains(searchLower) ||
-                       a.Amount.ToString().Contains(searchLower);
-            });
-        }
+        filtered = ActivitySearchFilter.FilterBySearch(filtered, searchTerm, activityTypes);
 
         displayedActivities = filtered.OrderByDescending(a => a.When).ToList();
     }
@@ -496,9 +484,9 @@
         }
     }
 
-    private async Task OnSearchTermChanged(ChangeEventArgs e)
+    private void OnSearchTermChanged(string value)
     {
-        searchTerm = e.Value?.ToString() ?? string.Empty;
+        searchTerm = value;
         ApplyFilters();
         StateHasChanged();
     }

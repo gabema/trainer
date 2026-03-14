@@ -20,6 +20,19 @@
     }
     else
     {
+        <div class="row mb-3">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <SearchFilter Value="@searchTerm" ValueChanged="OnSearchTermChanged" Placeholder="Search by activity type, notes, or amount..." />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
         <div class="calendar-container">
             @foreach (var month in loadedMonths.OrderByDescending(m => m.Year * 100 + m.Month))
             {
@@ -109,6 +122,9 @@
 </div>
 
 @code {
+    [SupplyParameterFromQuery(Name = "search")]
+    public string? FilterSearch { get; set; }
+
     private List<(int Year, int Month)> loadedMonths = new();
     private Dictionary<DateTime, List<Activity>> activitiesByDay = new();
     private List<ActivityType> activityTypes = new();
@@ -120,12 +136,25 @@
     private DotNetObjectReference<Calendar>? objRef;
     private IJSObjectReference? infiniteScrollModule;
     private bool _initialized = false;
+    private string searchTerm = string.Empty;
+    private string? _lastFilterSearch;
+
+    protected override void OnParametersSet()
+    {
+        if (FilterSearch != _lastFilterSearch)
+        {
+            _lastFilterSearch = FilterSearch;
+            searchTerm = FilterSearch ?? string.Empty;
+        }
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender && !_initialized)
         {
             _initialized = true;
+            _lastFilterSearch = FilterSearch;
+            searchTerm = FilterSearch ?? string.Empty;
             objRef = DotNetObjectReference.Create(this);
             
             try
@@ -334,10 +363,17 @@
             return Enumerable.Empty<(int, int)>();
         }
 
-        return activities
+        var filtered = ActivitySearchFilter.FilterBySearch(activities, searchTerm, activityTypes);
+        return filtered
             .GroupBy(a => a.ActivityTypeId)
             .Select(g => (g.Key, g.Count()))
             .OrderByDescending(g => g.Item2);
+    }
+
+    private void OnSearchTermChanged(string value)
+    {
+        searchTerm = value;
+        StateHasChanged();
     }
 
     private string GetActivityTypeName(int activityTypeId)
