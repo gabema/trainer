@@ -25,7 +25,7 @@ public class ExportImportServiceTests
         var testDate = DateTime.Now;
         var activities = new List<Activity>
         {
-            new() { Id = 1, ActivityTypeId = 1, When = testDate, Amount = 100, Notes = "Test" }
+            new() { Id = 1, ActivityTypeId = 1, When = testDate, Amount = 100, Notes = "Test", DurationSeconds = 90 }
         };
 
         var activityTypes = new List<ActivityType>
@@ -49,6 +49,7 @@ public class ExportImportServiceTests
         Assert.Contains("activities", result);
         Assert.Contains("activityTypes", result);
         Assert.Contains("exportDate", result);
+        Assert.Contains("durationSeconds", result);
         
         // Verify weekly format
         var jsonDoc = JsonDocument.Parse(result);
@@ -87,7 +88,7 @@ public class ExportImportServiceTests
         {
             activities = new List<Activity>
             {
-                new() { Id = 1, ActivityTypeId = 1, When = testDate, Amount = 100, Notes = "Test" }
+                new() { Id = 1, ActivityTypeId = 1, When = testDate, Amount = 100, Notes = "Test", DurationSeconds = 150 }
             },
             activityTypes = new List<ActivityType>
             {
@@ -124,7 +125,7 @@ public class ExportImportServiceTests
         {
             activities = new Dictionary<string, List<Activity>>
             {
-                { weekKey, new List<Activity> { new() { Id = 1, ActivityTypeId = 1, When = testDate, Amount = 100, Notes = "Test" } } }
+                { weekKey, new List<Activity> { new() { Id = 1, ActivityTypeId = 1, When = testDate, Amount = 100, Notes = "Test", DurationSeconds = 300 } } }
             },
             activityTypes = new List<ActivityType>
             {

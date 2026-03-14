@@ -63,6 +63,18 @@
         </div>
 
         <div class="mb-3">
+            <label class="form-label">Duration (minutes or M:SS)</label>
+            <InputText @bind-Value="durationInput" class="form-control" placeholder="e.g., 20 or 5:30" />
+            <div class="form-text">
+                Enter a whole number for minutes (e.g., <code>20</code> for 20 minutes) or <code>M:SS</code> for minutes and seconds (e.g., <code>5:30</code> for 5 minutes 30 seconds).
+            </div>
+            @if (!string.IsNullOrEmpty(durationError))
+            {
+                <div class="text-danger small">@durationError</div>
+            }
+        </div>
+
+        <div class="mb-3">
             <label class="form-label">Notes</label>
             <InputTextArea @bind-Value="activity.Notes" class="form-control" rows="4" />
         </div>
@@ -82,6 +94,8 @@
     private List<ActivityType> activityTypes = new();
     private ActivityType? selectedActivityType;
     private bool IsEditMode => Id > 0;
+    private string durationInput = string.Empty;
+    private string? durationError;
 
     private int ActivityTypeId
     {
@@ -130,13 +144,15 @@
                             ActivityTypeId = sourceActivity.ActivityTypeId,
                             When = DateTime.Now,
                             Amount = sourceActivity.Amount,
-                            Notes = sourceActivity.Notes
+                            Notes = sourceActivity.Notes,
+                            DurationSeconds = sourceActivity.DurationSeconds
                         };
                     }
                 }
             }
         }
         
+        durationInput = FormatDuration(activity.DurationSeconds);
         UpdateSelectedActivityType();
     }
 
@@ -155,6 +171,15 @@
 
     private async Task HandleSubmit()
     {
+        if (!TryParseDurationInput(durationInput, out var durationSeconds, out var error))
+        {
+            durationError = error;
+            return;
+        }
+
+        durationError = null;
+        activity.DurationSeconds = durationSeconds;
+
         if (IsEditMode)
         {
             await ActivityService.UpdateAsync(activity);
@@ -198,6 +223,104 @@
         {
             activity.When = activity.When.Date + time;
         }
+    }
+
+    private static string FormatDuration(int? durationSeconds)
+    {
+        if (!durationSeconds.HasValue || durationSeconds.Value <= 0)
+        {
+            return string.Empty;
+        }
+
+        var totalSeconds = durationSeconds.Value;
+        var minutes = totalSeconds / 60;
+        var seconds = totalSeconds % 60;
+        if (minutes == 0)
+        {
+            // Seconds only, e.g., "0:20" so it's clear it's 20 seconds
+            return $"0:{seconds:00}";
+        }
+
+        if (seconds == 0)
+        {
+            // Whole minutes only, e.g., "20"
+            return $"{minutes}";
+        }
+
+        // Minutes and seconds, e.g., "5:30"
+        return $"{minutes}:{seconds:00}";
+    }
+
+    private static bool TryParseDurationInput(string? input, out int? durationSeconds, out string? error)
+    {
+        durationSeconds = null;
+        error = null;
+
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return true;
+        }
+
+        input = input.Trim();
+        var parts = input.Split(':');
+
+        if (parts.Length == 1)
+        {
+            // Single integer = minutes, e.g., "20" means 20 minutes
+            if (!int.TryParse(parts[0], out var minutesOnly))
+            {
+                error = "Duration must be a number of minutes or in M:SS format.";
+                return false;
+            }
+
+            if (minutesOnly < 0)
+            {
+                error = "Duration cannot be negative.";
+                return false;
+            }
+
+            if (minutesOnly > 999)
+            {
+                error = "Minutes must be less than 1000.";
+                return false;
+            }
+
+            durationSeconds = minutesOnly * 60;
+            return true;
+        }
+
+        if (parts.Length != 2)
+        {
+            error = "Duration must be a number of minutes (e.g., 20) or in M:SS format (e.g., 5:30).";
+            return false;
+        }
+
+        if (!int.TryParse(parts[0], out var minutes) || !int.TryParse(parts[1], out var seconds))
+        {
+            error = "Minutes and seconds must be numeric.";
+            return false;
+        }
+
+        if (minutes < 0 || seconds < 0)
+        {
+            error = "Duration cannot be negative.";
+            return false;
+        }
+
+        if (seconds >= 60)
+        {
+            error = "Seconds must be between 00 and 59.";
+            return false;
+        }
+
+        if (minutes > 999)
+        {
+            error = "Minutes must be less than 1000.";
+            return false;
+        }
+
+        durationSeconds = (minutes * 60) + seconds;
+        return true;
     }
 }
 
