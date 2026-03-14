@@ -63,10 +63,10 @@
         </div>
 
         <div class="mb-3">
-            <label class="form-label">Duration (seconds or M:SS)</label>
-            <InputText @bind-Value="durationInput" class="form-control" placeholder="e.g., 5:30 or 20" />
+            <label class="form-label">Duration (minutes or M:SS)</label>
+            <InputText @bind-Value="durationInput" class="form-control" placeholder="e.g., 20 or 5:30" />
             <div class="form-text">
-                Enter duration as seconds (e.g., <code>20</code> for 20 seconds) or minutes and seconds (e.g., <code>5:30</code> for 5 minutes 30 seconds).
+                Enter a whole number for minutes (e.g., <code>20</code> for 20 minutes) or <code>M:SS</code> for minutes and seconds (e.g., <code>5:30</code> for 5 minutes 30 seconds).
             </div>
             @if (!string.IsNullOrEmpty(durationError))
             {
@@ -237,11 +237,17 @@
         var seconds = totalSeconds % 60;
         if (minutes == 0)
         {
-            // Seconds only, e.g., "20"
-            return $"{seconds}";
+            // Seconds only, e.g., "0:20" so it's clear it's 20 seconds
+            return $"0:{seconds:00}";
         }
 
-        // Minutes and seconds, e.g., "5:30" or "5:00"
+        if (seconds == 0)
+        {
+            // Whole minutes only, e.g., "20"
+            return $"{minutes}";
+        }
+
+        // Minutes and seconds, e.g., "5:30"
         return $"{minutes}:{seconds:00}";
     }
 
@@ -260,26 +266,32 @@
 
         if (parts.Length == 1)
         {
-            // Seconds-only input, e.g., "20"
-            if (!int.TryParse(parts[0], out var secondsOnly))
+            // Single integer = minutes, e.g., "20" means 20 minutes
+            if (!int.TryParse(parts[0], out var minutesOnly))
             {
-                error = "Duration must be a number of seconds or in M:SS format.";
+                error = "Duration must be a number of minutes or in M:SS format.";
                 return false;
             }
 
-            if (secondsOnly < 0)
+            if (minutesOnly < 0)
             {
                 error = "Duration cannot be negative.";
                 return false;
             }
 
-            durationSeconds = secondsOnly;
+            if (minutesOnly > 999)
+            {
+                error = "Minutes must be less than 1000.";
+                return false;
+            }
+
+            durationSeconds = minutesOnly * 60;
             return true;
         }
 
         if (parts.Length != 2)
         {
-            error = "Duration must be a number of seconds (e.g., 20) or in M:SS format (e.g., 5:30).";
+            error = "Duration must be a number of minutes (e.g., 20) or in M:SS format (e.g., 5:30).";
             return false;
         }
 
