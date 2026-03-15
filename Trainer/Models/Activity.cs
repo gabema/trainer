@@ -6,7 +6,7 @@ public record Activity
     public int ActivityTypeId { get; set; }
     public DateTime When { get; set; }
     public int Amount { get; set; }
-    public string Notes { get; set; } = string.Empty;
+    public string? Notes { get; set; }
     public int? DurationSeconds { get; set; }
 }
 

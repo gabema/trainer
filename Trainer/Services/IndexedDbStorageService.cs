@@ -2,6 +2,7 @@ namespace Trainer.Services;
 
 using Microsoft.JSInterop;
 using System.Text.Json;
+using Trainer.Serialization;
 
 internal class IndexedDbStorageService(IJSRuntime jsRuntime) : IStorageService, IDisposable
 {
@@ -9,7 +10,8 @@ internal class IndexedDbStorageService(IJSRuntime jsRuntime) : IStorageService, 
     private readonly JsonSerializerOptions _jsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        WriteIndented = false
+        WriteIndented = false,
+        Converters = { new DateTimeConverter() }
     };
     private bool _isInitialized;
     private readonly SemaphoreSlim _initSemaphore = new(1, 1);

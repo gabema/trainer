@@ -4,6 +4,7 @@ using Moq;
 using Trainer.Models;
 using Trainer.Services;
 using System.Text.Json;
+using Trainer.Serialization;
 
 public class ExportImportServiceTests
 {
@@ -254,5 +255,106 @@ public class ExportImportServiceTests
 
         // Assert
         _activityServiceMock.Verify(x => x.RecalculateNextIdAsync(), Times.Never, "RecalculateNextIdAsync should not be called when no activities are imported");
+    }
+
+    [Fact]
+    public async Task ExportDataAsync_MinifiesOutput_OmitsNulls_AndRoundTrips()
+    {
+        // Arrange - data with optional null fields
+        var testDate = DateTime.Now;
+        var weekKey = WeekHelper.GetWeekKey(testDate);
+        var activities = new List<Activity>
+        {
+            new() { Id = 1, ActivityTypeId = 1, When = testDate, Amount = 100, Notes = "Test", DurationSeconds = null }
+        };
+        var activityTypes = new List<ActivityType>
+        {
+            new() { Id = 1, Name = "Water", NetBenefit = NetBenefit.Positive, DailyAmount = null, WeeklyAmount = null, Unit = null }
+        };
+
+        _storageServiceMock
+            .Setup(x => x.GetItemAsync<List<Activity>>("activities"))
+            .ReturnsAsync(activities);
+        _storageServiceMock
+            .Setup(x => x.GetItemAsync<List<ActivityType>>("activityTypes"))
+            .ReturnsAsync(activityTypes);
+        _storageServiceMock
+            .Setup(x => x.SetItemAsync("activities", It.IsAny<List<Activity>>()))
+            .Returns(Task.CompletedTask);
+        _storageServiceMock
+            .Setup(x => x.SetItemAsync("activityTypes", It.IsAny<List<ActivityType>>()))
+            .Returns(Task.CompletedTask);
+
+        // Act - export
+        var exported = await _service.ExportDataAsync();
+
+        // Assert - minified: no newlines between properties
+        Assert.NotNull(exported);
+        Assert.DoesNotContain("\n", exported);
+        // Assert - nulls omitted (no "key":null in output)
+        Assert.DoesNotContain("\"durationSeconds\":null", exported);
+        Assert.DoesNotContain("\"unit\":null", exported);
+        Assert.DoesNotContain("\"dailyAmount\":null", exported);
+        Assert.DoesNotContain("\"weeklyAmount\":null", exported);
+
+        // Act - re-import the exported JSON
+        await _service.ImportDataAsync(exported);
+
+        // Assert - round-trip: import succeeded (storage was called with data)
+        _storageServiceMock.Verify(x => x.SetItemAsync("activities", It.IsAny<List<Activity>>()), Times.Once);
+        _storageServiceMock.Verify(x => x.SetItemAsync("activityTypes", It.IsAny<List<ActivityType>>()), Times.Once);
+    }
+
+    /// <summary>
+    /// .NET DateTimeOffset.Parse does not support ISO 8601 hour-only offset (±hh); our converter
+    /// normalizes to ±hh:00 in Read() so export/import round-trips for zero-minute timezones.
+    /// </summary>
+    [Fact]
+    public async Task ImportDataAsync_ParsesHourOnlyTimezoneOffset()
+    {
+        // JSON with hour-only offset (e.g. -05 instead of -05:00) as produced by our exporter in most timezones
+        var weekKey = "2026.11";
+        var json = $$"""
+            {"activities":{"{{weekKey}}":[{"id":1,"activityTypeId":1,"when":"2026-03-15T12:30:45-05","amount":10,"notes":"x"}],"2026.12":[]},"activityTypes":[{"id":1,"name":"Water","netBenefit":0}]}
+            """;
+
+        _storageServiceMock
+            .Setup(x => x.SetItemAsync("activities", It.IsAny<List<Activity>>()))
+            .Returns(Task.CompletedTask);
+        _storageServiceMock
+            .Setup(x => x.SetItemAsync("activityTypes", It.IsAny<List<ActivityType>>()))
+            .Returns(Task.CompletedTask);
+
+        await _service.ImportDataAsync(json);
+
+        _storageServiceMock.Verify(x => x.SetItemAsync("activities", It.Is<List<Activity>>(list =>
+            list.Count > 0 && list[0].When.Year == 2026 && list[0].When.Month == 3 && list[0].When.Day == 15)), Times.Once);
+    }
+
+    /// <summary>
+    /// Activity.Notes is nullable; null or missing notes in JSON deserialize as null.
+    /// </summary>
+    [Fact]
+    public async Task ImportDataAsync_DeserializesNullOrMissingNotesAsNull()
+    {
+        var weekKey = "2026.11";
+        var fullJson = $$"""
+            {"activities":{"{{weekKey}}":[{"id":1,"activityTypeId":1,"when":"2026-03-15T12:30:45Z","amount":5,"notes":null}],"2026.12":[]},"activityTypes":[{"id":1,"name":"Water","netBenefit":0}]}
+            """;
+
+        List<Activity>? captured = null;
+        _storageServiceMock
+            .Setup(x => x.SetItemAsync("activities", It.IsAny<List<Activity>>()))
+            .Callback<string, List<Activity>>((_, list) => captured = list)
+            .Returns(Task.CompletedTask);
+        _storageServiceMock
+            .Setup(x => x.SetItemAsync("activityTypes", It.IsAny<List<ActivityType>>()))
+            .Returns(Task.CompletedTask);
+
+        await _service.ImportDataAsync(fullJson);
+
+        Assert.NotNull(captured);
+        Assert.Single(captured);
+        Assert.Null(captured![0].Notes);
     }
 }

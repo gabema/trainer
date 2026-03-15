@@ -179,6 +179,7 @@
 
         durationError = null;
         activity.DurationSeconds = durationSeconds;
+        activity.Notes = activity.Notes.NullIfEmptyOrWhitespace();
 
         if (IsEditMode)
         {

@@ -1,7 +1,9 @@
 namespace Trainer.Services;
 
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Trainer.Models;
+using Trainer.Serialization;
 
 internal class ExportImportService(IStorageService storageService, IActivityService activityService) : IExportImportService
 {
@@ -10,7 +12,9 @@ internal class ExportImportService(IStorageService storageService, IActivityServ
     private readonly JsonSerializerOptions _jsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        WriteIndented = true
+        WriteIndented = false,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        Converters = { new DateTimeConverter() }
     };
 
     public async Task<string> ExportDataAsync()

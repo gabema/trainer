@@ -32,7 +32,7 @@ public static class ActivitySearchFilter
         var activityType = activityTypes.FirstOrDefault(t => t.Id == a.ActivityTypeId);
         var typeName = activityType?.Name ?? "";
         return typeName.Contains(searchTerm, SearchComparison) ||
-               a.Notes.Contains(searchTerm, SearchComparison) ||
+               (a.Notes ?? "").Contains(searchTerm, SearchComparison) ||
                a.Amount.ToString(CultureInfo.InvariantCulture).Contains(searchTerm, SearchComparison);
     }
 }
