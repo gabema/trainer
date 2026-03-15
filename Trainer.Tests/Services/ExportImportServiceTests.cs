@@ -255,4 +255,52 @@ public class ExportImportServiceTests
         // Assert
         _activityServiceMock.Verify(x => x.RecalculateNextIdAsync(), Times.Never, "RecalculateNextIdAsync should not be called when no activities are imported");
     }
+
+    [Fact]
+    public async Task ExportDataAsync_MinifiesOutput_OmitsNulls_AndRoundTrips()
+    {
+        // Arrange - data with optional null fields
+        var testDate = DateTime.Now;
+        var weekKey = WeekHelper.GetWeekKey(testDate);
+        var activities = new List<Activity>
+        {
+            new() { Id = 1, ActivityTypeId = 1, When = testDate, Amount = 100, Notes = "Test", DurationSeconds = null }
+        };
+        var activityTypes = new List<ActivityType>
+        {
+            new() { Id = 1, Name = "Water", NetBenefit = NetBenefit.Positive, DailyAmount = null, WeeklyAmount = null, Unit = null }
+        };
+
+        _storageServiceMock
+            .Setup(x => x.GetItemAsync<List<Activity>>("activities"))
+            .ReturnsAsync(activities);
+        _storageServiceMock
+            .Setup(x => x.GetItemAsync<List<ActivityType>>("activityTypes"))
+            .ReturnsAsync(activityTypes);
+        _storageServiceMock
+            .Setup(x => x.SetItemAsync("activities", It.IsAny<List<Activity>>()))
+            .Returns(Task.CompletedTask);
+        _storageServiceMock
+            .Setup(x => x.SetItemAsync("activityTypes", It.IsAny<List<ActivityType>>()))
+            .Returns(Task.CompletedTask);
+
+        // Act - export
+        var exported = await _service.ExportDataAsync();
+
+        // Assert - minified: no newlines between properties
+        Assert.NotNull(exported);
+        Assert.DoesNotContain("\n", exported);
+        // Assert - nulls omitted (no "key":null in output)
+        Assert.DoesNotContain("\"durationSeconds\":null", exported);
+        Assert.DoesNotContain("\"unit\":null", exported);
+        Assert.DoesNotContain("\"dailyAmount\":null", exported);
+        Assert.DoesNotContain("\"weeklyAmount\":null", exported);
+
+        // Act - re-import the exported JSON
+        await _service.ImportDataAsync(exported);
+
+        // Assert - round-trip: import succeeded (storage was called with data)
+        _storageServiceMock.Verify(x => x.SetItemAsync("activities", It.IsAny<List<Activity>>()), Times.Once);
+        _storageServiceMock.Verify(x => x.SetItemAsync("activityTypes", It.IsAny<List<ActivityType>>()), Times.Once);
+    }
 }
