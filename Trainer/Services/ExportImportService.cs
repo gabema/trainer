@@ -3,6 +3,7 @@ namespace Trainer.Services;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Trainer.Models;
+using Trainer.Serialization;
 
 internal class ExportImportService(IStorageService storageService, IActivityService activityService) : IExportImportService
 {
@@ -12,7 +13,8 @@ internal class ExportImportService(IStorageService storageService, IActivityServ
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = false,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        Converters = { new DateTimeConverter() }
     };
 
     public async Task<string> ExportDataAsync()
