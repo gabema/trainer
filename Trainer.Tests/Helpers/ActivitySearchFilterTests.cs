@@ -165,6 +165,19 @@ public class ActivitySearchFilterTests
     }
 
     [Fact]
+    public void FilterBySearch_ActivityWithNullNotes_DoesNotThrow_MatchesByAmount()
+    {
+        var activities = new List<Activity>
+        {
+            new() { Id = 1, ActivityTypeId = 1, When = DateTime.Now, Amount = 15, Notes = null },
+        };
+        var result = ActivitySearchFilter.FilterBySearch(activities, "15", ActivityTypes).ToList();
+        Assert.Single(result);
+        result = ActivitySearchFilter.FilterBySearch(activities, "xyz", ActivityTypes).ToList();
+        Assert.Empty(result);
+    }
+
+    [Fact]
     public void FilterBySearch_MissingActivityType_TypeNameTreatedAsEmpty_StillMatchesNotesOrAmount()
     {
         var activities = new List<Activity>

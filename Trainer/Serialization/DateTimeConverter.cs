@@ -3,6 +3,7 @@ namespace Trainer.Serialization;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 
 /// <summary>
 /// Serializes DateTime with seconds precision (no milliseconds) and timezone offset as hour-only
@@ -12,6 +13,12 @@ internal sealed class DateTimeConverter : JsonConverter<DateTime>
 {
     private const string FormatSeconds = "yyyy-MM-ddTHH:mm:ss";
 
+    /// <summary>
+    /// .NET's DateTimeOffset.Parse does not support ISO 8601 hour-only offset (±hh); it requires ±hh:mm.
+    /// We normalize so round-trip works for our own output.
+    /// </summary>
+    private static readonly Regex HourOnlyOffset = new(@"([+-])(\d{1,2})$", RegexOptions.Compiled);
+
     public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         if (reader.TokenType == JsonTokenType.Null)
@@ -20,6 +27,9 @@ internal sealed class DateTimeConverter : JsonConverter<DateTime>
         var s = reader.GetString();
         if (string.IsNullOrEmpty(s))
             return default;
+
+        // Normalize hour-only offset (e.g. "-05" -> "-05:00") so DateTimeOffset.Parse can parse it
+        s = HourOnlyOffset.Replace(s, "$1$2:00");
 
         var dto = DateTimeOffset.Parse(s, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
         return dto.Offset == TimeSpan.Zero ? dto.UtcDateTime : dto.DateTime;
