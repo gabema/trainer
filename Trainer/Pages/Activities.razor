@@ -173,7 +173,8 @@
             objRef = DotNetObjectReference.Create(this);
             try
             {
-                infiniteScrollModule = await JSRuntime.InvokeAsync<IJSObjectReference>("import", "/js/infinite-scroll.js");
+                var infiniteScrollUrl = $"{Navigation.BaseUri.TrimEnd('/')}/js/infinite-scroll.js";
+                infiniteScrollModule = await JSRuntime.InvokeAsync<IJSObjectReference>("import", infiniteScrollUrl);
                 await infiniteScrollModule.InvokeVoidAsync("initializeObserver", objRef, "scroll-trigger");
             }
             catch
