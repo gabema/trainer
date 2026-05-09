@@ -1,7 +1,7 @@
 // Service Worker for Trainer PWA
 // Detect base path from service worker location
 const basePath = self.location.pathname.replace(/\/[^/]*$/, '') || '/';
-const CACHE_NAME = 'trainer-v1';
+const CACHE_NAME = 'trainer-v2';
 
 // IndexedDB constants for guided notifications (must match notification-helper.js)
 const DB_NAME = 'TrainerDB';
