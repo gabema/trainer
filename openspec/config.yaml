@@ -1,20 +1,32 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  Tech stack: C# / .NET 10, Blazor WebAssembly (PWA, fully offline)
+  UI: Blazor component model (.razor files), Bootstrap 5, Chart.js 4
+  Storage: IndexedDB via JS interop (IndexedDbStorageService); JSON serialized with camelCase + custom DateTimeConverter
+  Testing: xUnit + Moq; test project is Trainer.Tests; test class naming is {ClassUnderTest}Tests; tests mirror source folder structure
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+  Domain: personal health/activity tracker. Users define ActivityTypes.
+  Activities are logged against a type with an amount, optional duration, and notes.
+  Key views: Home (recent activities + goal chart), Activities list (search + date filter + infinite scroll), Calendar (month view + search).
+
+  Project structure:
+    Trainer/Models/       — C# records (Activity, ActivityType, NetBenefit, DurationOption)
+    Trainer/Services/     — interfaces + implementations; service classes named {Entity}Service
+    Trainer/Helpers/      — static utility classes (ActivitySearchFilter, WeekHelper, DateTimeHelper)
+    Trainer/Pages/        — Blazor pages (one file per route)
+    Trainer/Components/   — reusable Blazor components
+    Trainer/wwwroot/js/   — JS helpers for IndexedDB, Chart.js, infinite scroll, service worker
+
+  Conventions:
+    - Interfaces prefixed with I (IActivityService)
+    - Private fields _camelCase
+    - Models are records; services are classes registered in Program.cs
+    - Scoped CSS via .razor.css files alongside components
+    - No server; all logic runs in the browser
+
+  Commit style: "Feature/{issue} description" | "Fix description" | "Issue #{n} description" | "Shipping {version}"
+
+rules:
+  tasks:
+    - Each task should be completable in a single focused session
