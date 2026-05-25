@@ -8,5 +8,6 @@ public record ActivityType
     public int? DailyAmount { get; set; }
     public int? WeeklyAmount { get; set; }
     public string? Unit { get; set; }
+    public bool IsPrivate { get; set; }
 }
 

@@ -35,4 +35,31 @@ public static class ActivitySearchFilter
                (a.Notes ?? "").Contains(searchTerm, SearchComparison) ||
                a.Amount.ToString(CultureInfo.InvariantCulture).Contains(searchTerm, SearchComparison);
     }
+
+    /// <summary>
+    /// Removes activities whose activity type is private, unless the active search term matches the type name.
+    /// When searchTerm is null/empty/whitespace, all private activities are removed.
+    /// </summary>
+    public static IEnumerable<Activity> FilterPrivate(
+        IEnumerable<Activity> activities,
+        string? searchTerm,
+        IReadOnlyList<ActivityType> activityTypes)
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
+        {
+            return activities.Where(a =>
+            {
+                var activityType = activityTypes.FirstOrDefault(t => t.Id == a.ActivityTypeId);
+                return activityType == null || !activityType.IsPrivate;
+            });
+        }
+
+        return activities.Where(a =>
+        {
+            var activityType = activityTypes.FirstOrDefault(t => t.Id == a.ActivityTypeId);
+            if (activityType == null || !activityType.IsPrivate)
+                return true;
+            return activityType.Name.Contains(searchTerm, SearchComparison);
+        });
+    }
 }
