@@ -231,4 +231,88 @@ public class ActivitySearchFilterTests
         var result = ActivitySearchFilter.FilterBySearch(activities, "Running", activityTypes).ToList();
         Assert.Empty(result);
     }
+
+    // FilterPrivate tests
+
+    private static readonly List<ActivityType> ActivityTypesWithPrivate = new()
+    {
+        new() { Id = 1, Name = "Running", IsPrivate = false },
+        new() { Id = 2, Name = "Meditation", IsPrivate = true },
+        new() { Id = 3, Name = "Swimming", IsPrivate = false },
+    };
+
+    [Fact]
+    public void FilterPrivate_NoSearch_HidesPrivateActivities()
+    {
+        var activities = new List<Activity>
+        {
+            new() { Id = 1, ActivityTypeId = 1, When = DateTime.Now, Amount = 5 },
+            new() { Id = 2, ActivityTypeId = 2, When = DateTime.Now, Amount = 10 },
+        };
+        var result = ActivitySearchFilter.FilterPrivate(activities, null, ActivityTypesWithPrivate).ToList();
+        Assert.Single(result);
+        Assert.Equal(1, result[0].Id);
+    }
+
+    [Fact]
+    public void FilterPrivate_EmptySearch_HidesPrivateActivities()
+    {
+        var activities = new List<Activity>
+        {
+            new() { Id = 1, ActivityTypeId = 1, When = DateTime.Now, Amount = 5 },
+            new() { Id = 2, ActivityTypeId = 2, When = DateTime.Now, Amount = 10 },
+        };
+        var result = ActivitySearchFilter.FilterPrivate(activities, "", ActivityTypesWithPrivate).ToList();
+        Assert.Single(result);
+        Assert.Equal(1, result[0].Id);
+    }
+
+    [Fact]
+    public void FilterPrivate_SearchMatchesPrivateTypeName_ShowsPrivateActivity()
+    {
+        var activities = new List<Activity>
+        {
+            new() { Id = 1, ActivityTypeId = 1, When = DateTime.Now, Amount = 5 },
+            new() { Id = 2, ActivityTypeId = 2, When = DateTime.Now, Amount = 10 },
+        };
+        var result = ActivitySearchFilter.FilterPrivate(activities, "Medi", ActivityTypesWithPrivate).ToList();
+        Assert.Equal(2, result.Count);
+    }
+
+    [Fact]
+    public void FilterPrivate_SearchDoesNotMatchPrivateTypeName_HidesPrivateActivity()
+    {
+        var activities = new List<Activity>
+        {
+            new() { Id = 1, ActivityTypeId = 1, When = DateTime.Now, Amount = 5 },
+            new() { Id = 2, ActivityTypeId = 2, When = DateTime.Now, Amount = 10, Notes = "calm session" },
+        };
+        // "calm" matches notes but not the type name "Meditation" — private type stays hidden
+        var result = ActivitySearchFilter.FilterPrivate(activities, "calm", ActivityTypesWithPrivate).ToList();
+        Assert.Single(result);
+        Assert.Equal(1, result[0].Id);
+    }
+
+    [Fact]
+    public void FilterPrivate_SearchMatchesPrivateTypeName_CaseInsensitive()
+    {
+        var activities = new List<Activity>
+        {
+            new() { Id = 2, ActivityTypeId = 2, When = DateTime.Now, Amount = 10 },
+        };
+        var result = ActivitySearchFilter.FilterPrivate(activities, "MEDITATION", ActivityTypesWithPrivate).ToList();
+        Assert.Single(result);
+    }
+
+    [Fact]
+    public void FilterPrivate_PublicActivitiesAlwaysPassThrough()
+    {
+        var activities = new List<Activity>
+        {
+            new() { Id = 1, ActivityTypeId = 1, When = DateTime.Now, Amount = 5 },
+            new() { Id = 3, ActivityTypeId = 3, When = DateTime.Now, Amount = 20 },
+        };
+        var result = ActivitySearchFilter.FilterPrivate(activities, null, ActivityTypesWithPrivate).ToList();
+        Assert.Equal(2, result.Count);
+    }
 }

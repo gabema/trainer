@@ -454,6 +454,9 @@
             }
         }
 
+        // Remove private activity types unless their name matches the active search term
+        filtered = ActivitySearchFilter.FilterPrivate(filtered, searchTerm, activityTypes);
+
         // Apply search filter (searches activity type name, notes, and amount)
         filtered = ActivitySearchFilter.FilterBySearch(filtered, searchTerm, activityTypes);
 

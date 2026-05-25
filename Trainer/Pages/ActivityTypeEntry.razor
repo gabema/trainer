@@ -51,6 +51,13 @@
         </div>
 
         <div class="mb-3">
+            <div class="form-check">
+                <InputCheckbox @bind-Value="activityType.IsPrivate" class="form-check-input" id="isPrivate" />
+                <label class="form-check-label" for="isPrivate">Private (hidden from home, activities, and calendar unless searched by name)</label>
+            </div>
+        </div>
+
+        <div class="mb-3">
             <button type="submit" class="btn btn-primary">@(IsEditMode ? "Update" : "Add")</button>
             <button type="button" class="btn btn-secondary ms-2" @onclick="Cancel">Cancel</button>
         </div>

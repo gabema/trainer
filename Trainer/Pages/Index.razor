@@ -144,11 +144,10 @@
     private List<Activity> GetFilteredActivitiesForDisplay()
     {
         var (startDate, endDate) = GetDateRange();
-        // Filter activities within the date range (inclusive)
-        var filtered = activities.Where(a => a.When >= startDate && a.When <= endDate)
-            .OrderByDescending(a => a.When)
-            .ToList();
-        return filtered;
+        var filtered = activities
+            .Where(a => a.When >= startDate && a.When <= endDate);
+        filtered = ActivitySearchFilter.FilterPrivate(filtered, null, activityTypes);
+        return filtered.OrderByDescending(a => a.When).ToList();
     }
 
     private int? GetGoalAmount(ActivityType activityType)

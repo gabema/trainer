@@ -364,7 +364,8 @@
             return Enumerable.Empty<(int, int)>();
         }
 
-        var filtered = ActivitySearchFilter.FilterBySearch(activities, searchTerm, activityTypes);
+        var filtered = ActivitySearchFilter.FilterPrivate(activities, searchTerm, activityTypes);
+        filtered = ActivitySearchFilter.FilterBySearch(filtered, searchTerm, activityTypes);
         return filtered
             .GroupBy(a => a.ActivityTypeId)
             .Select(g => (g.Key, g.Count()))
