@@ -315,4 +315,19 @@ public class ActivitySearchFilterTests
         var result = ActivitySearchFilter.FilterPrivate(activities, null, ActivityTypesWithPrivate).ToList();
         Assert.Equal(2, result.Count);
     }
+
+    [Fact]
+    public void FilterPrivate_HomeChartCallPattern_ExcludesPrivateActivityTypes()
+    {
+        // Mirrors the call in Index.razor GetFilteredActivitiesAsync(): null search, no user input
+        var activities = new List<Activity>
+        {
+            new() { Id = 1, ActivityTypeId = 1, When = DateTime.Now, Amount = 5 },  // Running (public)
+            new() { Id = 2, ActivityTypeId = 2, When = DateTime.Now, Amount = 10 }, // Meditation (private)
+            new() { Id = 3, ActivityTypeId = 3, When = DateTime.Now, Amount = 20 }, // Swimming (public)
+        };
+        var result = ActivitySearchFilter.FilterPrivate(activities, null, ActivityTypesWithPrivate).ToList();
+        Assert.Equal(2, result.Count);
+        Assert.DoesNotContain(result, a => a.ActivityTypeId == 2);
+    }
 }

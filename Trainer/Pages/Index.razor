@@ -136,9 +136,9 @@
     private async Task<List<Activity>> GetFilteredActivitiesAsync()
     {
         var (startDate, endDate) = GetDateRange();
-        // Filter activities within the date range (inclusive)
-        var filtered = activities.Where(a => a.When >= startDate && a.When <= endDate).ToList();
-        return filtered;
+        var filtered = activities.Where(a => a.When >= startDate && a.When <= endDate);
+        filtered = ActivitySearchFilter.FilterPrivate(filtered, null, activityTypes);
+        return filtered.ToList();
     }
 
     private List<Activity> GetFilteredActivitiesForDisplay()
