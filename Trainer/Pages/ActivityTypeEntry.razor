@@ -22,13 +22,18 @@
         <div class="mb-3">
             <label class="form-label">Net Benefit</label>
             <div class="btn-group mt-2" role="group">
-                <button type="button" 
-                        class="btn @(activityType.NetBenefit == NetBenefit.Positive ? "btn-success" : "btn-outline-success")" 
+                <button type="button"
+                        class="btn @(activityType.NetBenefit == NetBenefit.Positive ? "btn-success" : "btn-outline-success")"
                         @onclick="() => ToggleNetBenefit(NetBenefit.Positive)">
                     Positive
                 </button>
-                <button type="button" 
-                        class="btn @(activityType.NetBenefit == NetBenefit.Negative ? "btn-danger" : "btn-outline-danger")" 
+                <button type="button"
+                        class="btn @(activityType.NetBenefit == NetBenefit.Neutral ? "btn-secondary" : "btn-outline-secondary")"
+                        @onclick="() => ToggleNetBenefit(NetBenefit.Neutral)">
+                    Neutral
+                </button>
+                <button type="button"
+                        class="btn @(activityType.NetBenefit == NetBenefit.Negative ? "btn-danger" : "btn-outline-danger")"
                         @onclick="() => ToggleNetBenefit(NetBenefit.Negative)">
                     Negative
                 </button>
@@ -103,15 +108,7 @@
 
     private void ToggleNetBenefit(NetBenefit benefit)
     {
-        // If clicking the same option, deselect it (set to None)
-        if (activityType.NetBenefit == benefit)
-        {
-            activityType.NetBenefit = NetBenefit.None;
-        }
-        else
-        {
-            activityType.NetBenefit = benefit;
-        }
+        activityType.NetBenefit = benefit;
     }
 
     private string GetNavigationPath(string path)
