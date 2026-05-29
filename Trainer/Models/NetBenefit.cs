@@ -2,7 +2,7 @@ namespace Trainer.Models;
 
 public enum NetBenefit
 {
-    None,
+    Neutral,
     Positive,
     Negative
 }

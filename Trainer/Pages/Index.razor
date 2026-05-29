@@ -187,7 +187,7 @@
                     TotalAmount = g.Sum(a => a.Amount),
                     ActivityType = activityTypes.FirstOrDefault(t => t.Id == g.Key)
                 })
-                .Where(x => x.ActivityType != null && x.ActivityType.NetBenefit != NetBenefit.None)
+                .Where(x => x.ActivityType != null && x.ActivityType.NetBenefit != NetBenefit.Neutral)
                 .ToList();
 
             // Calculate percentages and filter out activities without goals
