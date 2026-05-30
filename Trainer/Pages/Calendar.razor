@@ -3,6 +3,7 @@
 @using Microsoft.JSInterop
 @inject IActivityService ActivityService
 @inject IActivityTypeService ActivityTypeService
+@inject IKnownLocationService KnownLocationService
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
 @implements IAsyncDisposable
@@ -27,6 +28,16 @@
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <SearchFilter Value="@searchTerm" ValueChanged="OnSearchTermChanged" Placeholder="Search by activity type, notes, or amount..." />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Location</label>
+                                <select class="form-select" value="@(_selectedLocationId?.ToString() ?? "")" @onchange="OnLocationFilterChanged">
+                                    <option value="">All Locations</option>
+                                    @foreach (var loc in _knownLocations)
+                                    {
+                                        <option value="@loc.Id">@loc.Name</option>
+                                    }
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -128,6 +139,8 @@
     private List<(int Year, int Month)> loadedMonths = new();
     private Dictionary<DateTime, List<Activity>> activitiesByDay = new();
     private List<ActivityType> activityTypes = new();
+    private List<KnownLocation> _knownLocations = new();
+    private int? _selectedLocationId;
     private HashSet<string> loadedWeekKeys = new();
     private HashSet<string> availableWeekKeys = new();
     private bool isLoading = false;
@@ -176,6 +189,7 @@
     private async Task LoadActivityTypes()
     {
         activityTypes = await ActivityTypeService.GetAllAsync();
+        _knownLocations = await KnownLocationService.GetAllAsync();
     }
 
     private async Task LoadInitialMonths()
@@ -364,7 +378,8 @@
             return Enumerable.Empty<(int, int)>();
         }
 
-        var filtered = ActivitySearchFilter.FilterPrivate(activities, searchTerm, activityTypes);
+        var filtered = ActivitySearchFilter.FilterByLocation(activities, _selectedLocationId);
+        filtered = ActivitySearchFilter.FilterPrivate(filtered, searchTerm, activityTypes);
         filtered = ActivitySearchFilter.FilterBySearch(filtered, searchTerm, activityTypes);
         return filtered
             .GroupBy(a => a.ActivityTypeId)
@@ -375,6 +390,12 @@
     private void OnSearchTermChanged(string value)
     {
         searchTerm = value;
+        StateHasChanged();
+    }
+
+    private void OnLocationFilterChanged(ChangeEventArgs e)
+    {
+        _selectedLocationId = int.TryParse(e.Value?.ToString(), out var id) ? id : (int?)null;
         StateHasChanged();
     }
 

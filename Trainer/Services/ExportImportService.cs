@@ -5,10 +5,11 @@ using System.Text.Json.Serialization;
 using Trainer.Models;
 using Trainer.Serialization;
 
-internal class ExportImportService(IStorageService storageService, IActivityService activityService) : IExportImportService
+internal class ExportImportService(IStorageService storageService, IActivityService activityService, IKnownLocationService knownLocationService) : IExportImportService
 {
     private readonly IStorageService _storageService = storageService;
     private readonly IActivityService _activityService = activityService;
+    private readonly IKnownLocationService _knownLocationService = knownLocationService;
     private readonly JsonSerializerOptions _jsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -43,10 +44,13 @@ internal class ExportImportService(IStorageService storageService, IActivityServ
                 .ToDictionary(g => g.Key, g => g.ToList());
         }
 
+        var knownLocations = await _knownLocationService.GetAllAsync().ConfigureAwait(false);
+
         var exportData = new
         {
             Activities = activitiesByWeek,
             ActivityTypes = activityTypes,
+            KnownLocations = knownLocations,
             ExportDate = DateTime.UtcNow
         };
 
@@ -143,6 +147,23 @@ internal class ExportImportService(IStorageService storageService, IActivityServ
                 if (activityTypes != null)
                 {
                     await _storageService.SetItemAsync("activityTypes", activityTypes).ConfigureAwait(false);
+                }
+            }
+
+            // Handle known locations (camelCase and PascalCase for backward compatibility)
+            JsonElement knownLocationsElement = default;
+            bool hasKnownLocations = root.TryGetProperty("knownLocations", out knownLocationsElement)
+                                  || root.TryGetProperty("KnownLocations", out knownLocationsElement);
+
+            if (hasKnownLocations && knownLocationsElement.ValueKind == JsonValueKind.Array)
+            {
+                var knownLocations = JsonSerializer.Deserialize<List<Models.KnownLocation>>(knownLocationsElement, _jsonOptions);
+                if (knownLocations != null)
+                {
+                    foreach (var loc in knownLocations)
+                    {
+                        await _knownLocationService.SaveAsync(loc).ConfigureAwait(false);
+                    }
                 }
             }
 
