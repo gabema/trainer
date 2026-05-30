@@ -10,13 +10,16 @@ public class ExportImportServiceTests
 {
     private readonly Mock<IStorageService> _storageServiceMock;
     private readonly Mock<IActivityService> _activityServiceMock;
+    private readonly Mock<IKnownLocationService> _knownLocationServiceMock;
     private readonly ExportImportService _service;
 
     public ExportImportServiceTests()
     {
         _storageServiceMock = new Mock<IStorageService>();
         _activityServiceMock = new Mock<IActivityService>();
-        _service = new ExportImportService(_storageServiceMock.Object, _activityServiceMock.Object);
+        _knownLocationServiceMock = new Mock<IKnownLocationService>();
+        _knownLocationServiceMock.Setup(s => s.GetAllAsync()).ReturnsAsync(new List<KnownLocation>());
+        _service = new ExportImportService(_storageServiceMock.Object, _activityServiceMock.Object, _knownLocationServiceMock.Object);
     }
 
     [Fact]

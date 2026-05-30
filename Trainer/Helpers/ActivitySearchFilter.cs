@@ -37,6 +37,19 @@ public static class ActivitySearchFilter
     }
 
     /// <summary>
+    /// Filters activities by known location ID. Returns the input sequence unchanged when locationId is null.
+    /// </summary>
+    public static IEnumerable<Activity> FilterByLocation(
+        IEnumerable<Activity> activities,
+        int? locationId)
+    {
+        if (!locationId.HasValue)
+            return activities;
+
+        return activities.Where(a => a.KnownLocationId == locationId.Value);
+    }
+
+    /// <summary>
     /// Removes activities whose activity type is private, unless the active search term matches the type name.
     /// When searchTerm is null/empty/whitespace, all private activities are removed.
     /// </summary>

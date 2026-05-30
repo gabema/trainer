@@ -1,3 +1,5 @@
+## MODIFIED Requirements
+
 ### Requirement: Activity stores optional known location reference
 The `Activity` model SHALL include an optional `KnownLocationId` (nullable string) field in addition to the existing `Latitude` and `Longitude` fields. `KnownLocationId` SHALL default to `null` and SHALL NOT be required for saving an activity.
 

@@ -316,6 +316,45 @@ public class ActivitySearchFilterTests
         Assert.Equal(2, result.Count);
     }
 
+    // FilterByLocation tests
+
+    [Fact]
+    public void FilterByLocation_NullLocationId_ReturnsInputUnchanged()
+    {
+        var activities = new List<Activity>
+        {
+            new() { Id = 1, ActivityTypeId = 1, When = DateTime.Now, Amount = 5, KnownLocationId = 10 },
+            new() { Id = 2, ActivityTypeId = 1, When = DateTime.Now, Amount = 5, KnownLocationId = null },
+        };
+        var result = ActivitySearchFilter.FilterByLocation(activities, null).ToList();
+        Assert.Equal(2, result.Count);
+    }
+
+    [Fact]
+    public void FilterByLocation_WithLocationId_ReturnsOnlyMatchingActivities()
+    {
+        var activities = new List<Activity>
+        {
+            new() { Id = 1, ActivityTypeId = 1, When = DateTime.Now, Amount = 5, KnownLocationId = 10 },
+            new() { Id = 2, ActivityTypeId = 1, When = DateTime.Now, Amount = 5, KnownLocationId = 20 },
+            new() { Id = 3, ActivityTypeId = 1, When = DateTime.Now, Amount = 5, KnownLocationId = null },
+        };
+        var result = ActivitySearchFilter.FilterByLocation(activities, 10).ToList();
+        Assert.Single(result);
+        Assert.Equal(1, result[0].Id);
+    }
+
+    [Fact]
+    public void FilterByLocation_NoMatches_ReturnsEmpty()
+    {
+        var activities = new List<Activity>
+        {
+            new() { Id = 1, ActivityTypeId = 1, When = DateTime.Now, Amount = 5, KnownLocationId = 20 },
+        };
+        var result = ActivitySearchFilter.FilterByLocation(activities, 99).ToList();
+        Assert.Empty(result);
+    }
+
     [Fact]
     public void FilterPrivate_HomeChartCallPattern_ExcludesPrivateActivityTypes()
     {

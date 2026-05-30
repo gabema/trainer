@@ -3,6 +3,7 @@
 @using Microsoft.JSInterop
 @inject IActivityService ActivityService
 @inject IActivityTypeService ActivityTypeService
+@inject IKnownLocationService KnownLocationService
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
 @implements IAsyncDisposable
@@ -18,7 +19,17 @@
                         <div class="col-md-6">
                             <SearchFilter Value="@searchTerm" ValueChanged="OnSearchTermChanged" Placeholder="Search by activity type, notes, or amount..." />
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-3">
+                            <label class="form-label">Location</label>
+                            <select class="form-select" value="@(_selectedLocationId?.ToString() ?? "")" @onchange="OnLocationFilterChanged">
+                                <option value="">All Locations</option>
+                                @foreach (var loc in _knownLocations)
+                                {
+                                    <option value="@loc.Id">@loc.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-3">
                             <label class="form-label">Date Duration</label>
                             <select class="form-select" value="@((int)selectedDateFilter)" @onchange="OnDateFilterChanged">
                                 <option value="@((int)DateFilterOption.AllTime)">All time</option>
@@ -109,6 +120,8 @@
     private List<Activity> allLoadedActivities = new();
     private List<Activity> displayedActivities = new();
     private List<ActivityType> activityTypes = new();
+    private List<KnownLocation> _knownLocations = new();
+    private int? _selectedLocationId;
     private string searchTerm = string.Empty;
     private DateFilterOption selectedDateFilter = DateFilterOption.Last4Weeks;
     private DateTime? customStartDate;
@@ -233,6 +246,7 @@
     private async Task LoadActivityTypes()
     {
         activityTypes = await ActivityTypeService.GetAllAsync();
+        _knownLocations = await KnownLocationService.GetAllAsync();
     }
 
     private async Task LoadInitialWeeks()
@@ -454,6 +468,9 @@
             }
         }
 
+        // Apply location filter
+        filtered = ActivitySearchFilter.FilterByLocation(filtered, _selectedLocationId);
+
         // Remove private activity types unless their name matches the active search term
         filtered = ActivitySearchFilter.FilterPrivate(filtered, searchTerm, activityTypes);
 
@@ -491,6 +508,13 @@
     private void OnSearchTermChanged(string value)
     {
         searchTerm = value;
+        ApplyFilters();
+        StateHasChanged();
+    }
+
+    private void OnLocationFilterChanged(ChangeEventArgs e)
+    {
+        _selectedLocationId = int.TryParse(e.Value?.ToString(), out var id) ? id : (int?)null;
         ApplyFilters();
         StateHasChanged();
     }

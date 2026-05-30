@@ -15,6 +15,7 @@ builder.Services.AddScoped<IStorageService>(sp => sp.GetRequiredService<IndexedD
 builder.Services.AddScoped<IActivityService, ActivityService>();
 builder.Services.AddScoped<IActivityTypeService, ActivityTypeService>();
 builder.Services.AddScoped<IGoalService, GoalService>();
+builder.Services.AddScoped<IKnownLocationService, KnownLocationService>();
 builder.Services.AddScoped<IExportImportService, ExportImportService>();
 
 await builder.Build().RunAsync().ConfigureAwait(false);

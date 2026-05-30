@@ -2,6 +2,7 @@
 @page "/activity/{Id:int}"
 @inject IActivityService ActivityService
 @inject IActivityTypeService ActivityTypeService
+@inject IKnownLocationService KnownLocationService
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
 
@@ -81,15 +82,26 @@
 
         <div class="mb-3">
             <label class="form-label">Location</label>
-            <div class="row g-2 mb-2">
-                <div class="col-md-6">
-                    <label class="form-label small text-muted">Latitude</label>
-                    <InputNumber @bind-Value="activity.Latitude" class="form-control" placeholder="e.g., 37.77493" />
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label small text-muted">Longitude</label>
-                    <InputNumber @bind-Value="activity.Longitude" class="form-control" placeholder="e.g., -122.41942" />
-                </div>
+            <div class="input-group mb-2">
+                <select class="form-select" value="@_selectedLocationId" @onchange="OnLocationSelectionChanged">
+                    <option value="">— No Location —</option>
+                    @foreach (var loc in _knownLocations)
+                    {
+                        <option value="@loc.Id">@loc.Name</option>
+                    }
+                </select>
+                <button type="button" class="btn btn-outline-secondary" @onclick="HandleLocationButtonClick">
+                    @if (_selectedLocationId == null)
+                    {
+                        <span>+</span>
+                    }
+                    else
+                    {
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/>
+                        </svg>
+                    }
+                </button>
             </div>
             <button type="button" class="btn btn-outline-secondary" @onclick="GetLocationAsync" disabled="@_gettingLocation">
                 @if (_gettingLocation)
@@ -121,6 +133,8 @@
 
     private Activity activity = new() { When = DateTime.Now };
     private List<ActivityType> activityTypes = new();
+    private List<KnownLocation> _knownLocations = new();
+    private int? _selectedLocationId;
     private ActivityType? selectedActivityType;
     private bool IsEditMode => Id > 0;
     private string durationInput = string.Empty;
@@ -141,7 +155,8 @@
     protected override async Task OnInitializedAsync()
     {
         activityTypes = await ActivityTypeService.GetAllAsync();
-        
+        _knownLocations = await KnownLocationService.GetAllAsync();
+
         if (IsEditMode)
         {
             var existingActivity = await ActivityService.GetByIdAsync(Id);
@@ -161,8 +176,8 @@
                     .Select(p => p.Split('='))
                     .Where(p => p.Length == 2)
                     .ToDictionary(p => Uri.UnescapeDataString(p[0]), p => Uri.UnescapeDataString(p[1]));
-                
-                if (queryParams.TryGetValue("duplicateFrom", out var duplicateFromValue) && 
+
+                if (queryParams.TryGetValue("duplicateFrom", out var duplicateFromValue) &&
                     int.TryParse(duplicateFromValue, out var duplicateFromId))
                 {
                     var sourceActivity = await ActivityService.GetByIdAsync(duplicateFromId);
@@ -178,13 +193,15 @@
                             Notes = sourceActivity.Notes,
                             DurationSeconds = sourceActivity.DurationSeconds,
                             Latitude = sourceActivity.Latitude,
-                            Longitude = sourceActivity.Longitude
+                            Longitude = sourceActivity.Longitude,
+                            KnownLocationId = sourceActivity.KnownLocationId
                         };
                     }
                 }
             }
         }
-        
+
+        _selectedLocationId = activity.KnownLocationId;
         durationInput = FormatDuration(activity.DurationSeconds);
         UpdateSelectedActivityType();
     }
@@ -202,6 +219,25 @@
         return $"{baseUri}/{normalizedPath}";
     }
 
+    private void OnLocationSelectionChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var id))
+            _selectedLocationId = id;
+        else
+            _selectedLocationId = null;
+    }
+
+    private void HandleLocationButtonClick()
+    {
+        var returnUrl = IsEditMode ? $"/activity/{Id}" : "/activity";
+        var encodedReturnUrl = Uri.EscapeDataString(returnUrl);
+
+        if (_selectedLocationId == null)
+            Navigation.NavigateTo(GetNavigationPath($"/known-location?returnUrl={encodedReturnUrl}"));
+        else
+            Navigation.NavigateTo(GetNavigationPath($"/known-location/{_selectedLocationId}?returnUrl={encodedReturnUrl}"));
+    }
+
     private async Task HandleSubmit()
     {
         if (!TryParseDurationInput(durationInput, out var durationSeconds, out var error))
@@ -214,6 +250,14 @@
         activity.DurationSeconds = durationSeconds;
         activity.Notes = activity.Notes.NullIfEmptyOrWhitespace();
 
+        // Apply selected known location (or clear)
+        activity.KnownLocationId = _selectedLocationId;
+        var selectedLocation = _selectedLocationId.HasValue
+            ? _knownLocations.FirstOrDefault(l => l.Id == _selectedLocationId.Value)
+            : null;
+        activity.Latitude = selectedLocation?.Latitude;
+        activity.Longitude = selectedLocation?.Longitude;
+
         if (IsEditMode)
         {
             await ActivityService.UpdateAsync(activity);
@@ -222,7 +266,7 @@
         {
             await ActivityService.AddAsync(activity);
         }
-        
+
         Navigation.NavigateTo(GetNavigationPath("/"));
     }
 
@@ -234,8 +278,8 @@
     private void HandleActivityTypeButtonClick()
     {
         // Build return URL to come back to this activity form
-        var returnUrl = IsEditMode 
-            ? $"/activity/{Id}" 
+        var returnUrl = IsEditMode
+            ? $"/activity/{Id}"
             : "/activity";
         var encodedReturnUrl = Uri.EscapeDataString(returnUrl);
         
@@ -302,10 +346,26 @@
                     _ => "Location is unavailable on this device or browser."
                 };
             }
-            else
+            else if (result.Latitude.HasValue && result.Longitude.HasValue)
             {
-                activity.Latitude = result.Latitude;
-                activity.Longitude = result.Longitude;
+                var nearby = await KnownLocationService.FindNearbyAsync(result.Latitude.Value, result.Longitude.Value);
+                if (nearby != null)
+                {
+                    _selectedLocationId = nearby.Id;
+                }
+                else
+                {
+                    var name = await KnownLocationService.NextAutoNameAsync();
+                    var newLocation = new KnownLocation
+                    {
+                        Latitude = result.Latitude.Value,
+                        Longitude = result.Longitude.Value,
+                        Name = name
+                    };
+                    var saved = await KnownLocationService.SaveAsync(newLocation);
+                    _knownLocations = await KnownLocationService.GetAllAsync();
+                    _selectedLocationId = saved.Id;
+                }
             }
         }
         catch
