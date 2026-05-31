@@ -5,7 +5,7 @@ The activity form SHALL display the Duration input inside a Bootstrap input-grou
 
 #### Scenario: Start button saves activity and registers it as active
 - **WHEN** the user fills out the activity form and clicks the **Start** button on the Duration field
-- **THEN** the activity is saved to storage, registered as active with the current UTC timestamp, and the Duration button changes to show **Stop**
+- **THEN** the activity is saved to storage, registered as active using the activity's **When** field as the start time, and the Duration button changes to show **Stop**
 
 #### Scenario: Stop button auto-fills duration and unregisters activity
 - **WHEN** the user clicks the **Stop** button on an active activity's Duration field

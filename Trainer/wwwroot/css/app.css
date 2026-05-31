@@ -65,6 +65,30 @@
     color: #fff;
 }
 
+/* Active Activities card header — custom amber tint that works in both modes */
+.active-activities-header {
+    background-color: rgba(255, 193, 7, 0.2);
+    border-color: rgba(255, 193, 7, 0.4);
+}
+
+[data-bs-theme="dark"] .active-activities-header {
+    background-color: rgba(255, 193, 7, 0.12);
+    border-color: rgba(255, 193, 7, 0.25);
+    color: #fff;
+}
+
+/* Dark mode for Bootstrap list groups */
+[data-bs-theme="dark"] .list-group-item {
+    background-color: #343a40;
+    border-color: #495057;
+    color: #fff;
+}
+
+[data-bs-theme="dark"] .list-group-item:hover {
+    background-color: #3d4449;
+    color: #fff;
+}
+
 /* Dark mode for Bootstrap tables */
 [data-bs-theme="dark"] .table {
     color: #fff;
