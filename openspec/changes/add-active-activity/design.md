@@ -51,9 +51,19 @@ Active state is intentionally transient: it represents activities the user is cu
 
 **Alternative considered**: A separate **Start** button alongside **Add** in the form footer. Rejected because it implies the same submission weight as **Add** and hides the connection to the duration value.
 
+### Decision 5: Browser (OS) notifications via the existing notification-helper.js
+
+**Chosen**: Add three functions to the existing `notification-helper.js` — `startActiveNotification(activityId, name)`, `updateActiveNotification(activityId, name, elapsed)`, and `closeActiveNotification(activityId)`. Each notification uses a stable tag `active-{activityId}` so replacing it is silent (no new alert sound). The Blazor side calls these functions via `IJSRuntime` interop. Updates are sent every 30 seconds (not every second) to avoid excessive OS notification churn. There is no in-page banner component.
+
+**Rationale**: `notification-helper.js` already has permission-request logic and service-worker notification wiring. Extending it keeps all notification code in one place. Using a tag to replace the notification silently means the user sees a live elapsed counter without being re-alerted every tick. 30-second update interval is a reasonable balance between freshness and noise.
+
+**Alternative considered**: An in-page alert bar in `MainLayout.razor`. Rejected per user feedback — browser notifications work across browser tabs and at the OS level, which is more useful for a timing workflow.
+
+**Where the interop is called**: A lightweight headless Blazor component (`ActiveActivityNotification.razor`) is mounted in `MainLayout.razor`. It renders no HTML but subscribes to `IActiveActivityService.OnChanged` and a 30-second `OnMinuteTick` event to call the JS functions at the right moments. This avoids injecting `IJSRuntime` into the singleton service.
+
 ## Risks / Trade-offs
 
 - **Timer drift on heavy tabs** → The 1-second timer is for display only; actual duration is always `DateTime.UtcNow - startTime` at finish time, so displayed time may lag by up to 1 s but the recorded duration will be exact.
-- **Active state lost on tab close** → Documented non-goal. User is warned via the notification UI while activities are active.
+- **Active state lost on tab close** → Documented non-goal. The OS notification is closed when Finish is called; if the tab closes before that, the notification stays open until the user dismisses it manually.
 - **Concurrent activities** → Multiple activities can be active simultaneously (the service stores a dictionary). The Home page section and notifications will show all of them.
 - **Export exclusion** → The `IActiveActivityService` state is in-memory only, so export naturally excludes it — no extra exclusion logic needed in the export path.

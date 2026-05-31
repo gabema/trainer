@@ -41,20 +41,28 @@ Each active activity entry (on the Home page Active Activities section and in th
 - **WHEN** the last active activity is finished
 - **THEN** the Active Activities section disappears from the Home page
 
-### Requirement: Real-time elapsed time notifications for active activities
-When at least one activity is active, the app SHALL display a notification message visible on all pages that lists each active activity and its current elapsed duration, updated every second.
+### Requirement: Browser notifications for active activities
+When an activity is started, the app SHALL request browser notification permission (if not already granted) and then display a browser (OS-level) notification for that activity showing its name and elapsed time. The notification SHALL update approximately every 30 seconds with the current elapsed time using a silent replace (same tag, no re-alert sound). When the activity is finished, its notification SHALL be closed programmatically.
 
-#### Scenario: Notification appears when activity is started
-- **WHEN** an activity is started
-- **THEN** a notification appears showing the activity name and elapsed time (starting at 000:00)
+#### Scenario: Permission requested on first start
+- **WHEN** the user clicks Start for the first time and notification permission has not been granted
+- **THEN** the browser prompts for notification permission before showing the notification
 
-#### Scenario: Notification updates elapsed time every second
+#### Scenario: Notification shown on start
+- **WHEN** an activity is started and notification permission is granted
+- **THEN** a browser notification appears with the activity type name as the title and the elapsed time (starting at 000:00) in the body
+
+#### Scenario: Notification updates elapsed time periodically
 - **WHEN** an activity is active
-- **THEN** the displayed elapsed time in the notification increments by one second each second
+- **THEN** the browser notification body is updated approximately every 30 seconds with the current elapsed time, silently (no re-alert sound)
 
-#### Scenario: Notification disappears when all activities are finished
-- **WHEN** the last active activity is finished
-- **THEN** the notification is no longer shown
+#### Scenario: Notification closed on finish
+- **WHEN** an activity is finished (from any surface — form, Home section, or Activities list)
+- **THEN** the browser notification for that activity is closed
+
+#### Scenario: Permission denied — no error shown
+- **WHEN** the user denies notification permission
+- **THEN** the activity starts and functions normally; no browser notification is shown and no error is displayed to the user
 
 ### Requirement: Active activity state is excluded from import/export
 The active activity tracking data (activity IDs and start timestamps) SHALL NOT be included in export files and SHALL NOT be affected by import operations.

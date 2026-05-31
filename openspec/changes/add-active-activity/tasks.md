@@ -32,11 +32,12 @@
 - [ ] 5.3 Wire the **Finish** button to compute elapsed duration, update and save the activity, and call `IActiveActivityService.Finish(activity.Id)`
 - [ ] 5.4 Ensure the **Finish** button disappears from the row immediately after finishing (trigger `StateHasChanged` on `OnChanged`)
 
-## 6. Notifications for Active Activities
+## 6. Browser Notifications for Active Activities
 
-- [ ] 6.1 Create an `ActiveActivityNotification` Blazor component (or integrate into the existing layout/nav) that subscribes to `OnChanged` and `OnTick` and renders an alert listing each active activity name and elapsed time
-- [ ] 6.2 Show the notification only when at least one activity is active; hide it otherwise
-- [ ] 6.3 Mount the `ActiveActivityNotification` component in `MainLayout.razor` (or equivalent shared layout) so it appears on all pages
+- [ ] 6.1 Add `startActiveNotification(activityId, name, elapsed)`, `updateActiveNotification(activityId, name, elapsed)`, and `closeActiveNotification(activityId)` to `notification-helper.js`; each uses tag `active-{activityId}` and `renotify: false, silent: true` for silent updates
+- [ ] 6.2 Add an `OnSlowTick` event to `ActiveActivityService` that fires every 30 seconds (in addition to the existing 1-second `OnTick`) for driving notification updates
+- [ ] 6.3 Create a headless `ActiveActivityNotification` Blazor component (renders no HTML) that subscribes to `IActiveActivityService.OnChanged` and `OnSlowTick`; on `OnChanged` it calls `startActiveNotification` / `closeActiveNotification` as appropriate; on `OnSlowTick` it calls `updateActiveNotification` for each active activity
+- [ ] 6.4 Mount `ActiveActivityNotification` in `MainLayout.razor`; request notification permission via `notificationHelper.requestPermission()` on first mount
 
 ## 7. Import/Export Exclusion Verification
 
