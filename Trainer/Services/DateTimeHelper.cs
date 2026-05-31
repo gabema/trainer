@@ -5,6 +5,14 @@ using Trainer.Models;
 
 internal static class DateTimeHelper
 {
+    public static string FormatElapsed(TimeSpan elapsed)
+    {
+        var totalSeconds = (int)Math.Max(0, elapsed.TotalSeconds);
+        var minutes = totalSeconds / 60;
+        var seconds = totalSeconds % 60;
+        return $"{minutes:D3}:{seconds:D2}";
+    }
+
     /// <summary>
     /// Formats a DateTime relative to the current time according to the specified rules:
     /// - Less than 2 hours ago: "X minutes ago"

@@ -199,5 +199,57 @@ window.notificationHelper = {
         };
         
         await registration.showNotification('Activity Notes', options);
+    },
+
+    // Show a browser notification for a started active activity.
+    // Safe to call even if permission is not granted — exits silently.
+    startActiveNotification: async function(activityId, name, elapsed) {
+        if (!('Notification' in window) || Notification.permission !== 'granted') return;
+        try {
+            const registration = await this._getRegistration();
+            const iconUrl = this._getIconUrl();
+            await registration.showNotification(name, {
+                tag: `active-${activityId}`,
+                body: `Active — ${elapsed}`,
+                icon: iconUrl,
+                badge: iconUrl,
+                renotify: false,
+                silent: true
+            });
+        } catch (e) {
+            console.warn('startActiveNotification failed:', e);
+        }
+    },
+
+    // Update an existing active notification with the latest elapsed time.
+    // Uses the same tag so the notification is replaced silently.
+    updateActiveNotification: async function(activityId, name, elapsed) {
+        if (!('Notification' in window) || Notification.permission !== 'granted') return;
+        try {
+            const registration = await this._getRegistration();
+            const iconUrl = this._getIconUrl();
+            await registration.showNotification(name, {
+                tag: `active-${activityId}`,
+                body: `Active — ${elapsed}`,
+                icon: iconUrl,
+                badge: iconUrl,
+                renotify: false,
+                silent: true
+            });
+        } catch (e) {
+            console.warn('updateActiveNotification failed:', e);
+        }
+    },
+
+    // Close the browser notification for a finished active activity.
+    closeActiveNotification: async function(activityId) {
+        try {
+            const registration = await this._getRegistration();
+            const tag = `active-${activityId}`;
+            const notifications = await registration.getNotifications({ tag });
+            for (const n of notifications) n.close();
+        } catch (e) {
+            console.warn('closeActiveNotification failed:', e);
+        }
     }
 };

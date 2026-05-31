@@ -89,4 +89,23 @@ public class DateTimeHelperTests
         Assert.Equal(expectedStart, start);
         Assert.Equal(expectedEnd, end);
     }
+
+    [Theory]
+    [InlineData(0, "000:00")]
+    [InlineData(1, "000:01")]
+    [InlineData(59, "000:59")]
+    [InlineData(60, "001:00")]
+    [InlineData(165, "002:45")]
+    [InlineData(999 * 60 + 59, "999:59")]
+    [InlineData(1000 * 60, "1000:00")]
+    public void FormatElapsed_ReturnsExpectedFormat(int totalSeconds, string expected)
+    {
+        Assert.Equal(expected, DateTimeHelper.FormatElapsed(TimeSpan.FromSeconds(totalSeconds)));
+    }
+
+    [Fact]
+    public void FormatElapsed_NegativeElapsed_ReturnsZero()
+    {
+        Assert.Equal("000:00", DateTimeHelper.FormatElapsed(TimeSpan.FromSeconds(-5)));
+    }
 }
