@@ -76,7 +76,7 @@
                         <div class="activity-cards-container">
                             @foreach (var activity in displayedActivities)
                             {
-                                <ActivityCard Activity="@activity" ActivityTypes="@activityTypes" OnActivityDeleted="HandleActivityDeleted" />
+                                <ActivityCard Activity="@activity" ActivityTypes="@activityTypes" KnownLocations="@_knownLocations" OnActivityDeleted="HandleActivityDeleted" />
                             }
                             @if (hasMoreWeeksToLoad)
                             {

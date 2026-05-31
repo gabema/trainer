@@ -102,18 +102,19 @@
                         </svg>
                     }
                 </button>
+                <button type="button" class="btn btn-outline-secondary" @onclick="GetLocationAsync" disabled="@_gettingLocation" title="Get Current location">
+                    @if (_gettingLocation)
+                    {
+                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    }
+                    else
+                    {
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M8 0a.5.5 0 0 1 .5.5v.518A7 7 0 0 1 14.982 7.5h.518a.5.5 0 0 1 0 1h-.518A7 7 0 0 1 8.5 14.982v.518a.5.5 0 0 1-1 0v-.518A7 7 0 0 1 1.018 8.5H.5a.5.5 0 0 1 0-1h.518A7 7 0 0 1 7.5.518V.5A.5.5 0 0 1 8 0zm0 2.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11zm0 3a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5z"/>
+                        </svg>
+                    }
+                </button>
             </div>
-            <button type="button" class="btn btn-outline-secondary" @onclick="GetLocationAsync" disabled="@_gettingLocation">
-                @if (_gettingLocation)
-                {
-                    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-                    <span>Getting location...</span>
-                }
-                else
-                {
-                    <span>Use My Location</span>
-                }
-            </button>
             @if (!string.IsNullOrEmpty(_locationError))
             {
                 <div class="text-danger small mt-1">@_locationError</div>
@@ -155,7 +156,9 @@
     protected override async Task OnInitializedAsync()
     {
         activityTypes = await ActivityTypeService.GetAllAsync();
-        _knownLocations = await KnownLocationService.GetAllAsync();
+        _knownLocations = (await KnownLocationService.GetAllAsync())
+            .OrderBy(l => l.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
         if (IsEditMode)
         {
@@ -363,7 +366,9 @@
                         Name = name
                     };
                     var saved = await KnownLocationService.SaveAsync(newLocation);
-                    _knownLocations = await KnownLocationService.GetAllAsync();
+                    _knownLocations = (await KnownLocationService.GetAllAsync())
+                        .OrderBy(l => l.Name, StringComparer.OrdinalIgnoreCase)
+                        .ToList();
                     _selectedLocationId = saved.Id;
                 }
             }

@@ -85,6 +85,9 @@
     public List<ActivityType> ActivityTypes { get; set; } = new();
 
     [Parameter]
+    public List<KnownLocation> KnownLocations { get; set; } = new();
+
+    [Parameter]
     public EventCallback OnActivityDeleted { get; set; }
 
     private bool showOverlay = false;
@@ -95,47 +98,8 @@
         return ActivityTypes.FirstOrDefault(t => t.Id == Activity.ActivityTypeId)?.Name ?? "Unknown";
     }
 
-    private string GetAmountDisplay()
-    {
-        var activityType = ActivityTypes.FirstOrDefault(t => t.Id == Activity.ActivityTypeId);
-        var amountText = activityType?.Unit != null
-            ? $"{Activity.Amount} {activityType.Unit}"
-            : Activity.Amount.ToString();
-
-        var durationText = FormatDuration(Activity.DurationSeconds);
-        if (!string.IsNullOrEmpty(durationText))
-        {
-            return $"{amountText} for {durationText}";
-        }
-
-        return amountText;
-    }
-
-    private static string? FormatDuration(int? durationSeconds)
-    {
-        if (!durationSeconds.HasValue || durationSeconds.Value <= 0)
-        {
-            return null;
-        }
-
-        var totalSeconds = durationSeconds.Value;
-        var minutes = totalSeconds / 60;
-        var seconds = totalSeconds % 60;
-
-        if (minutes == 0)
-        {
-            // Seconds only (e.g., "20s")
-            return $"{seconds}s";
-        }
-
-        if (seconds == 0)
-        {
-            // Whole minutes only (e.g., "20m")
-            return $"{minutes}m";
-        }
-
-        return $"{minutes:0}m {seconds:00}s";
-    }
+    private string GetAmountDisplay() =>
+        ActivityAmountDisplay.Format(Activity, ActivityTypes, KnownLocations);
 
     private void ToggleOverlay()
     {

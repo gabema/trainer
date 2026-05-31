@@ -3,6 +3,7 @@
 @inject IActivityTypeService ActivityTypeService
 @inject IExportImportService ExportImportService
 @inject IGoalService GoalService
+@inject IKnownLocationService KnownLocationService
 @inject IJSRuntime JSRuntime
 @inject NavigationManager Navigation
 
@@ -68,7 +69,7 @@
                         <div class="activity-cards-container">
                             @foreach (var activity in GetFilteredActivitiesForDisplay())
                             {
-                                <ActivityCard Activity="@activity" ActivityTypes="@activityTypes" OnActivityDeleted="HandleActivityDeleted" />
+                                <ActivityCard Activity="@activity" ActivityTypes="@activityTypes" KnownLocations="@_knownLocations" OnActivityDeleted="HandleActivityDeleted" />
                             }
                         </div>
                     }
@@ -87,6 +88,7 @@
 @code {
     private List<Activity> activities = new();
     private List<ActivityType> activityTypes = new();
+    private List<KnownLocation> _knownLocations = new();
     private string? chartInstance;
     private DurationOption selectedDuration = DurationOption.Week;
     private bool _isUpdatingChart = false;
@@ -105,6 +107,7 @@
     {
         activities = await ActivityService.GetAllAsync(); // Loads all activities by default
         activityTypes = await ActivityTypeService.GetAllAsync();
+        _knownLocations = await KnownLocationService.GetAllAsync();
         StateHasChanged();
         // Update chart after state change to ensure DOM is ready
         await Task.Delay(50);
