@@ -2,6 +2,7 @@ namespace Trainer.Services;
 
 using Microsoft.JSInterop;
 using System.Text.Json;
+using Trainer.Serialization;
 
 internal class LocalStorageService(IJSRuntime jsRuntime) : IStorageService
 {
@@ -9,7 +10,8 @@ internal class LocalStorageService(IJSRuntime jsRuntime) : IStorageService
     private readonly JsonSerializerOptions _jsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        WriteIndented = false
+        WriteIndented = false,
+        Converters = { new DateTimeConverter() }
     };
 
     public async Task<T?> GetItemAsync<T>(string key)

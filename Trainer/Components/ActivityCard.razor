@@ -178,7 +178,7 @@
         try
         {
             CloseOverlay();
-            await JSRuntime.InvokeVoidAsync("notificationHelper.startGuidedNotification", Activity.Id, Activity.Notes);
+            await JSRuntime.InvokeVoidAsync("notificationHelper.startGuidedNotification", Activity.Id, Activity.Notes ?? "");
         }
         catch (Exception ex)
         {

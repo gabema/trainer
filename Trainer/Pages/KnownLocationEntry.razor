@@ -1,0 +1,161 @@
+@page "/known-location"
+@page "/known-location/{Id:int}"
+@inject IKnownLocationService KnownLocationService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<PageTitle>@(IsEditMode ? "Edit Location" : "Add Location")</PageTitle>
+
+<div class="header-area">
+    <h1 class="mb-0">@(IsEditMode ? "Edit Location" : "Add Location")</h1>
+</div>
+
+<div class="container mt-4">
+    <EditForm Model="@location" OnValidSubmit="HandleSubmit">
+        <DataAnnotationsValidator />
+
+        <div class="mb-3">
+            <label class="form-label">Name</label>
+            <InputText @bind-Value="location.Name" class="form-control" placeholder="e.g., Home, Gym, Park" />
+            <ValidationMessage For="@(() => location.Name)" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Coordinates</label>
+            <div class="row g-2 mb-2">
+                <div class="col-md-6">
+                    <label class="form-label small text-muted">Latitude</label>
+                    <InputNumber @bind-Value="location.Latitude" class="form-control" placeholder="e.g., 37.77493" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small text-muted">Longitude</label>
+                    <InputNumber @bind-Value="location.Longitude" class="form-control" placeholder="e.g., -122.41942" />
+                </div>
+            </div>
+            <button type="button" class="btn btn-outline-secondary" @onclick="GetLocationAsync" disabled="@_gettingLocation">
+                @if (_gettingLocation)
+                {
+                    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                    <span>Getting location...</span>
+                }
+                else
+                {
+                    <span>Use My Location</span>
+                }
+            </button>
+            @if (!string.IsNullOrEmpty(_locationError))
+            {
+                <div class="text-danger small mt-1">@_locationError</div>
+            }
+        </div>
+
+        <div class="mb-3">
+            <button type="submit" class="btn btn-primary">@(IsEditMode ? "Update" : "Add")</button>
+            <button type="button" class="btn btn-secondary ms-2" @onclick="Cancel">Cancel</button>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private KnownLocation location = new();
+
+    // Id can be any int (including negative) because it's a hash — detect edit mode from the URL path instead.
+    private bool IsEditMode
+    {
+        get
+        {
+            var lastSegment = new Uri(Navigation.Uri).AbsolutePath.TrimEnd('/').Split('/').Last();
+            return int.TryParse(lastSegment, out _);
+        }
+    }
+    private string _returnUrl = "/activity";
+    private bool _gettingLocation;
+    private string? _locationError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var uri = new Uri(Navigation.Uri);
+        if (!string.IsNullOrEmpty(uri.Query))
+        {
+            var queryParams = uri.Query.TrimStart('?')
+                .Split('&')
+                .Select(p => p.Split('='))
+                .Where(p => p.Length == 2)
+                .ToDictionary(p => Uri.UnescapeDataString(p[0]), p => Uri.UnescapeDataString(p[1]));
+
+            if (queryParams.TryGetValue("returnUrl", out var url))
+                _returnUrl = url;
+        }
+
+        if (IsEditMode)
+        {
+            var all = await KnownLocationService.GetAllAsync();
+            var existing = all.FirstOrDefault(l => l.Id == Id);
+            if (existing != null)
+                location = existing;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        await KnownLocationService.SaveAsync(location);
+        Navigation.NavigateTo(GetNavigationPath(_returnUrl));
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo(GetNavigationPath(_returnUrl));
+    }
+
+    private async Task GetLocationAsync()
+    {
+        _gettingLocation = true;
+        _locationError = null;
+        StateHasChanged();
+
+        try
+        {
+            var result = await JSRuntime.InvokeAsync<LocationResult>("geolocationHelper.getLocation");
+            if (result.Error != null)
+            {
+                _locationError = result.Error switch
+                {
+                    "denied" => "Location access was denied. Enable it in browser settings or enter coordinates manually.",
+                    _ => "Location is unavailable on this device or browser."
+                };
+            }
+            else
+            {
+                location = location with
+                {
+                    Latitude = result.Latitude ?? location.Latitude,
+                    Longitude = result.Longitude ?? location.Longitude
+                };
+            }
+        }
+        catch
+        {
+            _locationError = "Unable to get location. Enter coordinates manually.";
+        }
+        finally
+        {
+            _gettingLocation = false;
+        }
+    }
+
+    private string GetNavigationPath(string path)
+    {
+        var baseUri = Navigation.BaseUri.TrimEnd('/');
+        return $"{baseUri}/{path.TrimStart('/')}";
+    }
+
+    private sealed class LocationResult
+    {
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
+        public string? Error { get; set; }
+    }
+}
