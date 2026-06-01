@@ -16,6 +16,7 @@ public class ExportImportServiceTests
     public ExportImportServiceTests()
     {
         _storageServiceMock = new Mock<IStorageService>();
+        _storageServiceMock.Setup(x => x.ClearAsync()).Returns(Task.CompletedTask);
         _activityServiceMock = new Mock<IActivityService>();
         _knownLocationServiceMock = new Mock<IKnownLocationService>();
         _knownLocationServiceMock.Setup(s => s.GetAllAsync()).ReturnsAsync(new List<KnownLocation>());
@@ -332,6 +333,68 @@ public class ExportImportServiceTests
 
         _storageServiceMock.Verify(x => x.SetItemAsync("activities", It.Is<List<Activity>>(list =>
             list.Count > 0 && list[0].When.Year == 2026 && list[0].When.Month == 3 && list[0].When.Day == 15)), Times.Once);
+    }
+
+    [Fact]
+    public async Task ImportDataAsync_ClearsAllStorageBeforeWritingData()
+    {
+        var callOrder = new List<string>();
+        _storageServiceMock
+            .Setup(x => x.ClearAsync())
+            .Callback(() => callOrder.Add("clear"))
+            .Returns(Task.CompletedTask);
+        _storageServiceMock
+            .Setup(x => x.SetItemAsync("activities", It.IsAny<List<Activity>>()))
+            .Callback<string, List<Activity>>((_, _) => callOrder.Add("setActivities"))
+            .Returns(Task.CompletedTask);
+
+        var json = """{"activities":[{"id":1,"activityTypeId":1,"when":"2026-01-01T00:00:00Z","amount":5}]}""";
+        await _service.ImportDataAsync(json);
+
+        Assert.Equal(["clear", "setActivities"], callOrder);
+    }
+
+    [Fact]
+    public async Task ExportDataAsync_ActivityRecords_OmitLatitudeAndLongitudeFields()
+    {
+        var activities = new List<Activity>
+        {
+            new() { Id = 1, ActivityTypeId = 1, When = DateTime.UtcNow, Amount = 10, KnownLocationId = 42 }
+        };
+
+        _storageServiceMock
+            .Setup(x => x.GetItemAsync<List<Activity>>("activities"))
+            .ReturnsAsync(activities);
+        _storageServiceMock
+            .Setup(x => x.GetItemAsync<List<ActivityType>>("activityTypes"))
+            .ReturnsAsync(new List<ActivityType>());
+
+        var exported = await _service.ExportDataAsync();
+
+        Assert.DoesNotContain("\"latitude\"", exported);
+        Assert.DoesNotContain("\"longitude\"", exported);
+    }
+
+    [Fact]
+    public async Task ImportDataAsync_ActivityRecordsWithLegacyCoordinates_SucceedsAndIgnoresCoordinates()
+    {
+        // JSON produced by an older version of the app that stored lat/long on activities
+        var weekKey = "2026.11";
+        var json = $$"""
+            {"activities":{"{{weekKey}}":[{"id":1,"activityTypeId":1,"when":"2026-03-15T12:00:00Z","amount":10,"knownLocationId":99,"latitude":37.77,"longitude":-122.41}]},"activityTypes":[]}
+            """;
+
+        List<Activity>? captured = null;
+        _storageServiceMock
+            .Setup(x => x.SetItemAsync("activities", It.IsAny<List<Activity>>()))
+            .Callback<string, List<Activity>>((_, list) => captured = list)
+            .Returns(Task.CompletedTask);
+
+        await _service.ImportDataAsync(json);
+
+        Assert.NotNull(captured);
+        Assert.Single(captured);
+        Assert.Equal(99, captured![0].KnownLocationId);
     }
 
     /// <summary>

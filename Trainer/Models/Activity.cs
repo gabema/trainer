@@ -8,8 +8,6 @@ public record Activity
     public int Amount { get; set; }
     public string? Notes { get; set; }
     public int? DurationSeconds { get; set; }
-    public double? Latitude { get; set; }
-    public double? Longitude { get; set; }
     public int? KnownLocationId { get; set; }
 }
 

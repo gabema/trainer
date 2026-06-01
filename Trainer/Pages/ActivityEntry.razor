@@ -209,8 +209,6 @@
                             Amount = sourceActivity.Amount,
                             Notes = sourceActivity.Notes,
                             DurationSeconds = sourceActivity.DurationSeconds,
-                            Latitude = sourceActivity.Latitude,
-                            Longitude = sourceActivity.Longitude,
                             KnownLocationId = sourceActivity.KnownLocationId
                         };
                     }
@@ -308,11 +306,6 @@
         activity.Notes = activity.Notes.NullIfEmptyOrWhitespace();
 
         activity.KnownLocationId = _selectedLocationId;
-        var selectedLocation = _selectedLocationId.HasValue
-            ? _knownLocations.FirstOrDefault(l => l.Id == _selectedLocationId.Value)
-            : null;
-        activity.Latitude = selectedLocation?.Latitude;
-        activity.Longitude = selectedLocation?.Longitude;
 
         if (activity.Id > 0)
         {

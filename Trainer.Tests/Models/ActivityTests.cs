@@ -5,49 +5,43 @@ using Trainer.Models;
 public class ActivityTests
 {
     [Fact]
-    public void Activity_DefaultCoordinates_AreNull()
+    public void Activity_DefaultKnownLocationId_IsNull()
     {
         var activity = new Activity { When = DateTime.Now, Amount = 10 };
 
-        Assert.Null(activity.Latitude);
-        Assert.Null(activity.Longitude);
+        Assert.Null(activity.KnownLocationId);
     }
 
     [Fact]
-    public void Activity_WithCoordinates_StoresValues()
+    public void Activity_WithKnownLocationId_StoresValue()
     {
         var activity = new Activity
         {
             When = DateTime.Now,
             Amount = 10,
-            Latitude = 37.77493,
-            Longitude = -122.41942
+            KnownLocationId = 42
         };
 
-        Assert.Equal(37.77493, activity.Latitude);
-        Assert.Equal(-122.41942, activity.Longitude);
+        Assert.Equal(42, activity.KnownLocationId);
     }
 
     [Fact]
-    public void Activity_ClearCoordinates_BecomeNull()
+    public void Activity_ClearKnownLocationId_BecomesNull()
     {
         var activity = new Activity
         {
             When = DateTime.Now,
             Amount = 10,
-            Latitude = 37.77493,
-            Longitude = -122.41942
+            KnownLocationId = 42
         };
 
-        activity.Latitude = null;
-        activity.Longitude = null;
+        activity.KnownLocationId = null;
 
-        Assert.Null(activity.Latitude);
-        Assert.Null(activity.Longitude);
+        Assert.Null(activity.KnownLocationId);
     }
 
     [Fact]
-    public void DuplicateFrom_WithCoordinates_CopiesCoordinates()
+    public void DuplicateFrom_WithKnownLocationId_CopiesId()
     {
         var source = new Activity
         {
@@ -57,8 +51,7 @@ public class ActivityTests
             Amount = 5000,
             Notes = "morning run",
             DurationSeconds = 1800,
-            Latitude = 37.77493,
-            Longitude = -122.41942
+            KnownLocationId = 99
         };
 
         var duplicate = new Activity
@@ -69,17 +62,15 @@ public class ActivityTests
             Amount = source.Amount,
             Notes = source.Notes,
             DurationSeconds = source.DurationSeconds,
-            Latitude = source.Latitude,
-            Longitude = source.Longitude
+            KnownLocationId = source.KnownLocationId
         };
 
-        Assert.Equal(source.Latitude, duplicate.Latitude);
-        Assert.Equal(source.Longitude, duplicate.Longitude);
+        Assert.Equal(source.KnownLocationId, duplicate.KnownLocationId);
         Assert.Equal(0, duplicate.Id);
     }
 
     [Fact]
-    public void DuplicateFrom_WithNullCoordinates_CopiesNulls()
+    public void DuplicateFrom_WithNullKnownLocationId_CopiesNull()
     {
         var source = new Activity
         {
@@ -87,8 +78,7 @@ public class ActivityTests
             ActivityTypeId = 3,
             When = DateTime.Now.AddDays(-1),
             Amount = 5000,
-            Latitude = null,
-            Longitude = null
+            KnownLocationId = null
         };
 
         var duplicate = new Activity
@@ -97,11 +87,9 @@ public class ActivityTests
             ActivityTypeId = source.ActivityTypeId,
             When = DateTime.Now,
             Amount = source.Amount,
-            Latitude = source.Latitude,
-            Longitude = source.Longitude
+            KnownLocationId = source.KnownLocationId
         };
 
-        Assert.Null(duplicate.Latitude);
-        Assert.Null(duplicate.Longitude);
+        Assert.Null(duplicate.KnownLocationId);
     }
 }
