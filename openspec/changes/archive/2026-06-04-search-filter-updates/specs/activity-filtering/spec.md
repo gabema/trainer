@@ -1,3 +1,19 @@
+## REMOVED Requirements
+
+### Requirement: Activities list includes a known-location filter dropdown
+**Reason**: Location filtering is absorbed into the text search field. Users can type a location name directly into search.
+**Migration**: Remove the Location `<select>` from the Activities filter card. Remove `_selectedLocationId` state and `OnLocationFilterChanged` handler. Remove the `FilterByLocation` call from `GetActivitiesForDisplay`.
+
+### Requirement: Calendar view includes a known-location filter dropdown
+**Reason**: Same as Activities — location filtering absorbed into text search.
+**Migration**: Remove the Location `<select>` from the Calendar filter card. Remove `_selectedLocationId` state and `OnLocationFilterChanged` handler. Remove the `FilterByLocation` call from `GetActivitiesForDay`.
+
+### Requirement: Location filter applied in ActivitySearchFilter helper
+**Reason**: `FilterByLocation` is no longer called. Location matching is handled inside `FilterBySearch`.
+**Migration**: Delete `ActivitySearchFilter.FilterByLocation`. Remove all call sites.
+
+## MODIFIED Requirements
+
 ### Requirement: Activities list text search matches activity type name, notes, amount, and location name
 The Activities page SHALL pass the loaded known-locations list to `ActivitySearchFilter.FilterBySearch`. `FilterBySearch` SHALL match when the activity's associated known-location name (looked up by `KnownLocationId`) contains the search term (case-insensitive). When an activity has no associated location or no matching location is found, the location name is treated as an empty string and produces no match. The search placeholder text SHALL read "Search by activity type, notes, amount, or location…".
 
@@ -42,18 +58,3 @@ The Activities page SHALL initialize `selectedDateFilter` to `AllTime`. The Date
 #### Scenario: Reset to All Time when date query param is cleared
 - **WHEN** the page previously had a date query parameter and that parameter is removed
 - **THEN** selectedDateFilter resets to AllTime and all activities are lazy-loaded from scratch
-
-### Requirement: Activities list shows Finish button for active activities
-The Activities list page SHALL display a **Finish** button next to the **Edit** button for any activity that is currently active. Clicking **Finish** SHALL behave identically to finishing from the Active Activities section: it computes elapsed duration, saves the activity with the updated Duration field, and removes it from the active set.
-
-#### Scenario: Finish button visible for active activity in list
-- **WHEN** an activity in the Activities list is currently active
-- **THEN** a **Finish** button is displayed next to the **Edit** button for that row
-
-#### Scenario: Finish button not visible for non-active activity
-- **WHEN** an activity in the Activities list is not active
-- **THEN** no **Finish** button is shown for that row
-
-#### Scenario: Finish from Activities list updates duration and removes from active set
-- **WHEN** the user clicks **Finish** on an active activity in the Activities list
-- **THEN** the activity's Duration is set to elapsed time in MMM:SS format, the activity is saved, and the Finish button disappears from that row
