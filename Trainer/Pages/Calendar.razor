@@ -145,7 +145,7 @@
     private int? _selectedLocationId;
     private HashSet<string> loadedWeekKeys = new();
     private HashSet<string> availableWeekKeys = new();
-    private bool isLoading = false;
+    private bool isLoading = true;
     private bool hasMoreMonthsToLoad = true;
     private (int Year, int Month) oldestLoadedMonth = (DateTime.Now.Year, DateTime.Now.Month);
     private DotNetObjectReference<Calendar>? objRef;
