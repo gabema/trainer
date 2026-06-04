@@ -16,27 +16,13 @@
             <div class="card">
                 <div class="card-body">
                     <div class="row g-3">
-                        <div class="col-md-6">
-                            <SearchFilter Value="@searchTerm" ValueChanged="OnSearchTermChanged" Placeholder="Search by activity type, notes, or amount..." />
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Location</label>
-                            <select class="form-select" value="@(_selectedLocationId?.ToString() ?? "")" @onchange="OnLocationFilterChanged">
-                                <option value="">All Locations</option>
-                                @foreach (var loc in _knownLocations)
-                                {
-                                    <option value="@loc.Id">@loc.Name</option>
-                                }
-                            </select>
+                        <div class="col-md-9">
+                            <SearchFilter Value="@searchTerm" ValueChanged="OnSearchTermChanged" Placeholder="Search by activity type, notes, amount, or location…" />
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">Date Duration</label>
                             <select class="form-select" value="@((int)selectedDateFilter)" @onchange="OnDateFilterChanged">
                                 <option value="@((int)DateFilterOption.AllTime)">All time</option>
-                                <option value="@((int)DateFilterOption.Last24Hours)">Last 24 hours</option>
-                                <option value="@((int)DateFilterOption.CurrentWeek)">Current Week</option>
-                                <option value="@((int)DateFilterOption.Last7Days)">Last 7 days</option>
-                                <option value="@((int)DateFilterOption.Last4Weeks)">Last 4 Weeks</option>
                                 <option value="@((int)DateFilterOption.Custom)">Custom Range</option>
                             </select>
                         </div>
@@ -123,9 +109,8 @@
     private List<Activity> displayedActivities = new();
     private List<ActivityType> activityTypes = new();
     private List<KnownLocation> _knownLocations = new();
-    private int? _selectedLocationId;
     private string searchTerm = string.Empty;
-    private DateFilterOption selectedDateFilter = DateFilterOption.Last4Weeks;
+    private DateFilterOption selectedDateFilter = DateFilterOption.AllTime;
     private DateTime? customStartDate;
     private DateTime? customEndDate;
     private HashSet<string> loadedWeekKeys = new();
@@ -141,10 +126,6 @@
     private enum DateFilterOption
     {
         AllTime,
-        Last24Hours,
-        CurrentWeek,
-        Last7Days,
-        Last4Weeks,
         Custom
     }
 
@@ -238,7 +219,7 @@
             // Reset date filter when query param is cleared (only if it was previously set)
             if (!string.IsNullOrEmpty(oldFilterDate))
             {
-                selectedDateFilter = DateFilterOption.Last4Weeks;
+                selectedDateFilter = DateFilterOption.AllTime;
                 customStartDate = null;
                 customEndDate = null;
             }
@@ -430,30 +411,11 @@
 
     private (DateTime? StartDate, DateTime? EndDate) GetDateFilterRange()
     {
-        var now = DateTime.Now;
-        
-        switch (selectedDateFilter)
+        if (selectedDateFilter == DateFilterOption.Custom && customStartDate.HasValue && customEndDate.HasValue)
         {
-            case DateFilterOption.Last24Hours:
-                return (now.AddHours(-24), now);
-            case DateFilterOption.CurrentWeek:
-                var daysToMonday = ((int)now.DayOfWeek - (int)DayOfWeek.Monday + 7) % 7;
-                var currentWeekStart = now.AddDays(-daysToMonday).Date;
-                var currentWeekEnd = currentWeekStart.AddDays(6).Date.AddHours(23).AddMinutes(59).AddSeconds(59);
-                return (currentWeekStart, currentWeekEnd);
-            case DateFilterOption.Last7Days:
-                return (now.AddDays(-7), now);
-            case DateFilterOption.Last4Weeks:
-                return (now.AddDays(-28), now);
-            case DateFilterOption.Custom:
-                if (customStartDate.HasValue && customEndDate.HasValue)
-                {
-                    return (customStartDate.Value.Date, customEndDate.Value.Date.AddHours(23).AddMinutes(59).AddSeconds(59));
-                }
-                return (null, null);
-            default:
-                return (null, null); // All time
+            return (customStartDate.Value.Date, customEndDate.Value.Date.AddHours(23).AddMinutes(59).AddSeconds(59));
         }
+        return (null, null); // AllTime or Custom with no dates
     }
 
     private void ApplyFilters()
@@ -470,14 +432,11 @@
             }
         }
 
-        // Apply location filter
-        filtered = ActivitySearchFilter.FilterByLocation(filtered, _selectedLocationId);
-
         // Remove private activity types unless their name matches the active search term
         filtered = ActivitySearchFilter.FilterPrivate(filtered, searchTerm, activityTypes);
 
-        // Apply search filter (searches activity type name, notes, and amount)
-        filtered = ActivitySearchFilter.FilterBySearch(filtered, searchTerm, activityTypes);
+        // Apply search filter (searches activity type name, notes, amount, and location name)
+        filtered = ActivitySearchFilter.FilterBySearch(filtered, searchTerm, activityTypes, _knownLocations);
 
         displayedActivities = filtered.OrderByDescending(a => a.When).ToList();
     }
@@ -510,13 +469,6 @@
     private void OnSearchTermChanged(string value)
     {
         searchTerm = value;
-        ApplyFilters();
-        StateHasChanged();
-    }
-
-    private void OnLocationFilterChanged(ChangeEventArgs e)
-    {
-        _selectedLocationId = int.TryParse(e.Value?.ToString(), out var id) ? id : (int?)null;
         ApplyFilters();
         StateHasChanged();
     }

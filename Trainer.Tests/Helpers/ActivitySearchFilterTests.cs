@@ -12,6 +12,14 @@ public class ActivitySearchFilterTests
         new() { Id = 3, Name = "Reading" },
     };
 
+    private static readonly List<KnownLocation> NoLocations = new();
+
+    private static readonly List<KnownLocation> KnownLocations = new()
+    {
+        new() { Id = 10, Name = "My Gym", Latitude = 0, Longitude = 0 },
+        new() { Id = 20, Name = "Home Pool", Latitude = 0, Longitude = 0 },
+    };
+
     [Fact]
     public void FilterBySearch_NullSearch_ReturnsInputUnchanged()
     {
@@ -19,7 +27,7 @@ public class ActivitySearchFilterTests
         {
             new() { Id = 1, ActivityTypeId = 1, When = DateTime.Now, Amount = 10, Notes = "run" },
         };
-        var result = ActivitySearchFilter.FilterBySearch(activities, null, ActivityTypes).ToList();
+        var result = ActivitySearchFilter.FilterBySearch(activities, null, ActivityTypes, NoLocations).ToList();
         Assert.Single(result);
         Assert.Equal(1, result[0].Id);
     }
@@ -31,7 +39,7 @@ public class ActivitySearchFilterTests
         {
             new() { Id = 1, ActivityTypeId = 1, When = DateTime.Now, Amount = 10, Notes = "run" },
         };
-        var result = ActivitySearchFilter.FilterBySearch(activities, "", ActivityTypes).ToList();
+        var result = ActivitySearchFilter.FilterBySearch(activities, "", ActivityTypes, NoLocations).ToList();
         Assert.Single(result);
     }
 
@@ -44,7 +52,7 @@ public class ActivitySearchFilterTests
         {
             new() { Id = 1, ActivityTypeId = 1, When = DateTime.Now, Amount = 10, Notes = "run" },
         };
-        var result = ActivitySearchFilter.FilterBySearch(activities, searchTerm, ActivityTypes).ToList();
+        var result = ActivitySearchFilter.FilterBySearch(activities, searchTerm, ActivityTypes, NoLocations).ToList();
         Assert.Single(result);
     }
 
@@ -56,7 +64,7 @@ public class ActivitySearchFilterTests
             new() { Id = 1, ActivityTypeId = 1, When = DateTime.Now, Amount = 0, Notes = "" },
             new() { Id = 2, ActivityTypeId = 2, When = DateTime.Now, Amount = 0, Notes = "" },
         };
-        var result = ActivitySearchFilter.FilterBySearch(activities, "Run", ActivityTypes).ToList();
+        var result = ActivitySearchFilter.FilterBySearch(activities, "Run", ActivityTypes, NoLocations).ToList();
         Assert.Single(result);
         Assert.Equal(1, result[0].Id);
         Assert.Equal(1, result[0].ActivityTypeId);
@@ -70,7 +78,7 @@ public class ActivitySearchFilterTests
             new() { Id = 1, ActivityTypeId = 1, When = DateTime.Now, Amount = 0, Notes = "quick morning run" },
             new() { Id = 2, ActivityTypeId = 2, When = DateTime.Now, Amount = 0, Notes = "pool session" },
         };
-        var result = ActivitySearchFilter.FilterBySearch(activities, "morning", ActivityTypes).ToList();
+        var result = ActivitySearchFilter.FilterBySearch(activities, "morning", ActivityTypes, NoLocations).ToList();
         Assert.Single(result);
         Assert.Equal(1, result[0].Id);
     }
@@ -83,7 +91,7 @@ public class ActivitySearchFilterTests
             new() { Id = 1, ActivityTypeId = 1, When = DateTime.Now, Amount = 15, Notes = "" },
             new() { Id = 2, ActivityTypeId = 2, When = DateTime.Now, Amount = 20, Notes = "" },
         };
-        var result = ActivitySearchFilter.FilterBySearch(activities, "15", ActivityTypes).ToList();
+        var result = ActivitySearchFilter.FilterBySearch(activities, "15", ActivityTypes, NoLocations).ToList();
         Assert.Single(result);
         Assert.Equal(15, result[0].Amount);
     }
@@ -95,7 +103,7 @@ public class ActivitySearchFilterTests
         {
             new() { Id = 1, ActivityTypeId = 1, When = DateTime.Now, Amount = 150, Notes = "" },
         };
-        var result = ActivitySearchFilter.FilterBySearch(activities, "15", ActivityTypes).ToList();
+        var result = ActivitySearchFilter.FilterBySearch(activities, "15", ActivityTypes, NoLocations).ToList();
         Assert.Single(result);
         Assert.Equal(150, result[0].Amount);
     }
@@ -110,7 +118,7 @@ public class ActivitySearchFilterTests
         {
             new() { Id = 1, ActivityTypeId = 1, When = DateTime.Now, Amount = 0, Notes = "" },
         };
-        var result = ActivitySearchFilter.FilterBySearch(activities, searchTerm, ActivityTypes).ToList();
+        var result = ActivitySearchFilter.FilterBySearch(activities, searchTerm, ActivityTypes, NoLocations).ToList();
         Assert.Single(result);
     }
 
@@ -121,7 +129,7 @@ public class ActivitySearchFilterTests
         {
             new() { Id = 1, ActivityTypeId = 1, When = DateTime.Now, Amount = 0, Notes = "my NOTE here" },
         };
-        var result = ActivitySearchFilter.FilterBySearch(activities, "note", ActivityTypes).ToList();
+        var result = ActivitySearchFilter.FilterBySearch(activities, "note", ActivityTypes, NoLocations).ToList();
         Assert.Single(result);
     }
 
@@ -132,7 +140,7 @@ public class ActivitySearchFilterTests
         {
             new() { Id = 1, ActivityTypeId = 1, When = DateTime.Now, Amount = 0, Notes = "run" },
         };
-        var result = ActivitySearchFilter.FilterBySearch(activities, "xyz", ActivityTypes).ToList();
+        var result = ActivitySearchFilter.FilterBySearch(activities, "xyz", ActivityTypes, NoLocations).ToList();
         Assert.Empty(result);
     }
 
@@ -145,7 +153,7 @@ public class ActivitySearchFilterTests
             new() { Id = 2, ActivityTypeId = 2, When = DateTime.Now, Amount = 0, Notes = "" },
             new() { Id = 3, ActivityTypeId = 3, When = DateTime.Now, Amount = 0, Notes = "read a book" },
         };
-        var result = ActivitySearchFilter.FilterBySearch(activities, "read", ActivityTypes).ToList();
+        var result = ActivitySearchFilter.FilterBySearch(activities, "read", ActivityTypes, NoLocations).ToList();
         Assert.Single(result);
         Assert.Equal(3, result[0].Id); // Only "Reading" type name contains "read"
         Assert.DoesNotContain(result, a => a.Id == 1);
@@ -160,7 +168,7 @@ public class ActivitySearchFilterTests
             new() { Id = 1, ActivityTypeId = 1, When = DateTime.Now, Amount = 0, Notes = "" },
             new() { Id = 2, ActivityTypeId = 2, When = DateTime.Now, Amount = 0, Notes = "running in pool" },
         };
-        var result = ActivitySearchFilter.FilterBySearch(activities, "run", ActivityTypes).ToList();
+        var result = ActivitySearchFilter.FilterBySearch(activities, "run", ActivityTypes, NoLocations).ToList();
         Assert.Equal(2, result.Count);
     }
 
@@ -171,9 +179,9 @@ public class ActivitySearchFilterTests
         {
             new() { Id = 1, ActivityTypeId = 1, When = DateTime.Now, Amount = 15, Notes = null },
         };
-        var result = ActivitySearchFilter.FilterBySearch(activities, "15", ActivityTypes).ToList();
+        var result = ActivitySearchFilter.FilterBySearch(activities, "15", ActivityTypes, NoLocations).ToList();
         Assert.Single(result);
-        result = ActivitySearchFilter.FilterBySearch(activities, "xyz", ActivityTypes).ToList();
+        result = ActivitySearchFilter.FilterBySearch(activities, "xyz", ActivityTypes, NoLocations).ToList();
         Assert.Empty(result);
     }
 
@@ -184,9 +192,9 @@ public class ActivitySearchFilterTests
         {
             new() { Id = 1, ActivityTypeId = 99, When = DateTime.Now, Amount = 42, Notes = "custom" },
         };
-        var result = ActivitySearchFilter.FilterBySearch(activities, "42", ActivityTypes).ToList();
+        var result = ActivitySearchFilter.FilterBySearch(activities, "42", ActivityTypes, NoLocations).ToList();
         Assert.Single(result);
-        result = ActivitySearchFilter.FilterBySearch(activities, "custom", ActivityTypes).ToList();
+        result = ActivitySearchFilter.FilterBySearch(activities, "custom", ActivityTypes, NoLocations).ToList();
         Assert.Single(result);
     }
 
@@ -194,7 +202,7 @@ public class ActivitySearchFilterTests
     public void FilterBySearch_EmptyActivitiesList_ReturnsEmpty()
     {
         var activities = new List<Activity>();
-        var result = ActivitySearchFilter.FilterBySearch(activities, "run", ActivityTypes).ToList();
+        var result = ActivitySearchFilter.FilterBySearch(activities, "run", ActivityTypes, NoLocations).ToList();
         Assert.Empty(result);
     }
 
@@ -202,7 +210,7 @@ public class ActivitySearchFilterTests
     public void FilterBySearch_EmptyActivitiesList_NullSearch_ReturnsEmpty()
     {
         var activities = new List<Activity>();
-        var result = ActivitySearchFilter.FilterBySearch(activities, null, ActivityTypes).ToList();
+        var result = ActivitySearchFilter.FilterBySearch(activities, null, ActivityTypes, NoLocations).ToList();
         Assert.Empty(result);
     }
 
@@ -214,9 +222,9 @@ public class ActivitySearchFilterTests
         {
             new() { Id = 1, ActivityTypeId = 1, When = DateTime.Now, Amount = 10, Notes = "hello" },
         };
-        var result = ActivitySearchFilter.FilterBySearch(activities, "hello", activityTypes).ToList();
+        var result = ActivitySearchFilter.FilterBySearch(activities, "hello", activityTypes, NoLocations).ToList();
         Assert.Single(result);
-        result = ActivitySearchFilter.FilterBySearch(activities, "10", activityTypes).ToList();
+        result = ActivitySearchFilter.FilterBySearch(activities, "10", activityTypes, NoLocations).ToList();
         Assert.Single(result);
     }
 
@@ -228,7 +236,66 @@ public class ActivitySearchFilterTests
         {
             new() { Id = 1, ActivityTypeId = 1, When = DateTime.Now, Amount = 10, Notes = "hello" },
         };
-        var result = ActivitySearchFilter.FilterBySearch(activities, "Running", activityTypes).ToList();
+        var result = ActivitySearchFilter.FilterBySearch(activities, "Running", activityTypes, NoLocations).ToList();
+        Assert.Empty(result);
+    }
+
+    // FilterBySearch location-name matching tests
+
+    [Fact]
+    public void FilterBySearch_MatchByLocationName_IncludesMatchingActivity()
+    {
+        var activities = new List<Activity>
+        {
+            new() { Id = 1, ActivityTypeId = 1, When = DateTime.Now, Amount = 0, KnownLocationId = 10 },
+            new() { Id = 2, ActivityTypeId = 2, When = DateTime.Now, Amount = 0, KnownLocationId = 20 },
+        };
+        var result = ActivitySearchFilter.FilterBySearch(activities, "gym", ActivityTypes, KnownLocations).ToList();
+        Assert.Single(result);
+        Assert.Equal(1, result[0].Id);
+    }
+
+    [Fact]
+    public void FilterBySearch_LocationNameCaseInsensitive_Matches()
+    {
+        var activities = new List<Activity>
+        {
+            new() { Id = 1, ActivityTypeId = 1, When = DateTime.Now, Amount = 0, KnownLocationId = 10 },
+        };
+        var result = ActivitySearchFilter.FilterBySearch(activities, "GYM", ActivityTypes, KnownLocations).ToList();
+        Assert.Single(result);
+    }
+
+    [Fact]
+    public void FilterBySearch_SearchTermNotInLocationName_ExcludesActivity()
+    {
+        var activities = new List<Activity>
+        {
+            new() { Id = 1, ActivityTypeId = 1, When = DateTime.Now, Amount = 0, KnownLocationId = 10, Notes = "" },
+        };
+        var result = ActivitySearchFilter.FilterBySearch(activities, "pool", ActivityTypes, KnownLocations).ToList();
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public void FilterBySearch_EmptyKnownLocationsList_LocationNameTreatedAsEmpty()
+    {
+        var activities = new List<Activity>
+        {
+            new() { Id = 1, ActivityTypeId = 1, When = DateTime.Now, Amount = 0, KnownLocationId = 10, Notes = "" },
+        };
+        var result = ActivitySearchFilter.FilterBySearch(activities, "gym", ActivityTypes, NoLocations).ToList();
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public void FilterBySearch_NullKnownLocationId_LocationNameTreatedAsEmpty_NoMatch()
+    {
+        var activities = new List<Activity>
+        {
+            new() { Id = 1, ActivityTypeId = 1, When = DateTime.Now, Amount = 0, KnownLocationId = null, Notes = "" },
+        };
+        var result = ActivitySearchFilter.FilterBySearch(activities, "gym", ActivityTypes, KnownLocations).ToList();
         Assert.Empty(result);
     }
 
@@ -314,45 +381,6 @@ public class ActivitySearchFilterTests
         };
         var result = ActivitySearchFilter.FilterPrivate(activities, null, ActivityTypesWithPrivate).ToList();
         Assert.Equal(2, result.Count);
-    }
-
-    // FilterByLocation tests
-
-    [Fact]
-    public void FilterByLocation_NullLocationId_ReturnsInputUnchanged()
-    {
-        var activities = new List<Activity>
-        {
-            new() { Id = 1, ActivityTypeId = 1, When = DateTime.Now, Amount = 5, KnownLocationId = 10 },
-            new() { Id = 2, ActivityTypeId = 1, When = DateTime.Now, Amount = 5, KnownLocationId = null },
-        };
-        var result = ActivitySearchFilter.FilterByLocation(activities, null).ToList();
-        Assert.Equal(2, result.Count);
-    }
-
-    [Fact]
-    public void FilterByLocation_WithLocationId_ReturnsOnlyMatchingActivities()
-    {
-        var activities = new List<Activity>
-        {
-            new() { Id = 1, ActivityTypeId = 1, When = DateTime.Now, Amount = 5, KnownLocationId = 10 },
-            new() { Id = 2, ActivityTypeId = 1, When = DateTime.Now, Amount = 5, KnownLocationId = 20 },
-            new() { Id = 3, ActivityTypeId = 1, When = DateTime.Now, Amount = 5, KnownLocationId = null },
-        };
-        var result = ActivitySearchFilter.FilterByLocation(activities, 10).ToList();
-        Assert.Single(result);
-        Assert.Equal(1, result[0].Id);
-    }
-
-    [Fact]
-    public void FilterByLocation_NoMatches_ReturnsEmpty()
-    {
-        var activities = new List<Activity>
-        {
-            new() { Id = 1, ActivityTypeId = 1, When = DateTime.Now, Amount = 5, KnownLocationId = 20 },
-        };
-        var result = ActivitySearchFilter.FilterByLocation(activities, 99).ToList();
-        Assert.Empty(result);
     }
 
     [Fact]
