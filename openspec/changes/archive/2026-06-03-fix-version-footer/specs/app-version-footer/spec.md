@@ -1,3 +1,5 @@
+## MODIFIED Requirements
+
 ### Requirement: Build version is embedded at compile time
 The application SHALL embed the build version string into the compiled WASM artifact via an MSBuild-generated C# constant so that the version is available without a runtime HTTP request or reflection. In CI/CD builds triggered by a GitHub Release, the release tag (with any leading `v` stripped) SHALL be passed as `$(InformationalVersion)` to the build.
 
@@ -23,18 +25,3 @@ The application SHALL provide a reusable Blazor component (`AppVersionFooter`) t
 #### Scenario: Footer is visually unobtrusive
 - **WHEN** the `AppVersionFooter` component is rendered
 - **THEN** it SHALL use muted, small-sized text centered horizontally so it does not distract from page content
-
-### Requirement: Version footer appears on Home, Activities, and Calendar pages
-The Home, Activities, and Calendar pages SHALL each include the `AppVersionFooter` component at the bottom of their page content.
-
-#### Scenario: Home page shows version footer
-- **WHEN** a user navigates to the Home page
-- **THEN** the page SHALL display the version footer at the bottom
-
-#### Scenario: Activities page shows version footer
-- **WHEN** a user navigates to the Activities page
-- **THEN** the page SHALL display the version footer at the bottom
-
-#### Scenario: Calendar page shows version footer
-- **WHEN** a user navigates to the Calendar page
-- **THEN** the page SHALL display the version footer at the bottom
