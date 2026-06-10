@@ -38,6 +38,6 @@ public static class ActivityAmountDisplay
 
         if (minutes == 0) return $"{seconds}s";
         if (seconds == 0) return $"{minutes}m";
-        return $"{minutes:0}m {seconds:00}s";
+        return $"{minutes}m {seconds}s";
     }
 }

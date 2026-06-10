@@ -1,5 +1,5 @@
 ### Requirement: Duration field has a Start/Stop toggle button
-The activity form SHALL display the Duration input inside a Bootstrap input-group with a toggle button appended at the right end. The button SHALL show a timer icon and the caption **Start** when the activity is not active. Clicking **Start** SHALL validate the form, save the activity, and register it as active with the current UTC timestamp. While active, the button SHALL show a timer icon and the caption **Stop**. Clicking **Stop** SHALL compute elapsed time in MMM:SS format, write it to the Duration field, save the updated activity, and unregister it from the active set. The form SHALL remain open after both Start and Stop actions.
+The activity form SHALL display the Duration input inside a Bootstrap input-group with a toggle button appended at the right end. The button SHALL show a timer icon and the caption **Start** when the activity is not active. Clicking **Start** SHALL validate the form, save the activity, and register it as active with the current UTC timestamp. While active, the button SHALL show a timer icon and the caption **Stop**. Clicking **Stop** SHALL compute elapsed time in compact `M:SS` format (e.g. `2:45`, `0:30`), write it to the Duration field, save the updated activity, and unregister it from the active set. The form SHALL remain open after both Start and Stop actions.
 
 #### Scenario: Start button saves activity and registers it as active
 - **WHEN** the user fills out the activity form and clicks the **Start** button on the Duration field
@@ -7,7 +7,7 @@ The activity form SHALL display the Duration input inside a Bootstrap input-grou
 
 #### Scenario: Stop button auto-fills duration and unregisters activity
 - **WHEN** the user clicks the **Stop** button on an active activity's Duration field
-- **THEN** the elapsed time is computed, the Duration field is populated with the MMM:SS value, the activity is saved, and the button reverts to showing **Start**
+- **THEN** the elapsed time is computed, the Duration field is populated with the compact `M:SS` value (e.g. `0:30`, not `000:30`), the activity is saved, and the button reverts to showing **Start**
 
 #### Scenario: Start button validates the form
 - **WHEN** the user clicks **Start** with invalid or missing required fields
@@ -26,21 +26,21 @@ The Home page SHALL display an **Active Activities** section positioned after th
 
 #### Scenario: One or more active activities shown
 - **WHEN** one or more activities are active
-- **THEN** the Active Activities section is visible, listing each active activity with its name/type and its current elapsed time in MMM:SS format, updated every second
+- **THEN** the Active Activities section is visible, listing each active activity with its name/type and its current elapsed time in compact `M:SS` format, updated every second
 
 ### Requirement: User can finish an active activity
-Each active activity entry (on the Home page Active Activities section and in the Activities list) SHALL display a **Finish** button. When clicked, the system SHALL compute the elapsed duration (MMM:SS), write it to the activity's Duration field, save the updated activity, and remove the activity from the active set.
+Each active activity entry (on the Home page Active Activities section and in the Activities list) SHALL display a **Finish** button. When clicked, the system SHALL compute the elapsed duration in compact `M:SS` format, write it to the activity's Duration field, save the updated activity, and remove the activity from the active set.
 
 #### Scenario: Finish button auto-fills duration
 - **WHEN** the user clicks **Finish** on an active activity
-- **THEN** the activity's Duration field is set to the elapsed time since Start in MMM:SS format (e.g., `002:45`), the activity is saved, and it is removed from the Active Activities section
+- **THEN** the activity's Duration field is set to the elapsed time since Start in compact `M:SS` format (e.g. `2:45`), the activity is saved, and it is removed from the Active Activities section
 
 #### Scenario: Finish removes activity from active list
 - **WHEN** the last active activity is finished
 - **THEN** the Active Activities section disappears from the Home page
 
 ### Requirement: Browser notifications for active activities
-When an activity is started, the app SHALL request browser notification permission (if not already granted) and then display a browser (OS-level) notification for that activity showing its name and elapsed time. The notification SHALL update approximately every 30 seconds with the current elapsed time using a silent replace (same tag, no re-alert sound). When the activity is finished, its notification SHALL be closed programmatically.
+When an activity is started, the app SHALL request browser notification permission (if not already granted) and then display a browser (OS-level) notification for that activity showing its name and elapsed time. The notification SHALL update approximately every 30 seconds with the current elapsed time using a silent replace (same tag, no re-alert sound). When the activity is finished, its notification SHALL be closed programmatically. Elapsed time in the notification SHALL use compact `M:SS` format.
 
 #### Scenario: Permission requested on first start
 - **WHEN** the user clicks Start for the first time and notification permission has not been granted
@@ -48,7 +48,7 @@ When an activity is started, the app SHALL request browser notification permissi
 
 #### Scenario: Notification shown on start
 - **WHEN** an activity is started and notification permission is granted
-- **THEN** a browser notification appears with the activity type name as the title and the elapsed time (starting at 000:00) in the body
+- **THEN** a browser notification appears with the activity type name as the title and the elapsed time (starting at `0:00`) in the body
 
 #### Scenario: Notification updates elapsed time periodically
 - **WHEN** an activity is active

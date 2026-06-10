@@ -250,49 +250,6 @@
         return activityTypes.FirstOrDefault(t => t.Id == activityTypeId)?.Name ?? "Unknown";
     }
 
-    private string GetAmountDisplay(Activity activity)
-    {
-        var activityType = activityTypes.FirstOrDefault(t => t.Id == activity.ActivityTypeId);
-        var amountText = activityType?.Unit != null
-            ? $"{activity.Amount} {activityType.Unit}"
-            : activity.Amount.ToString();
-
-        var durationText = FormatDuration(activity.DurationSeconds);
-        if (!string.IsNullOrEmpty(durationText))
-        {
-            return $"{amountText} for {durationText}";
-        }
-
-        return amountText;
-    }
-
-    private static string? FormatDuration(int? durationSeconds)
-    {
-        if (!durationSeconds.HasValue || durationSeconds.Value <= 0)
-        {
-            return null;
-        }
-
-        var totalSeconds = durationSeconds.Value;
-        var minutes = totalSeconds / 60;
-        var seconds = totalSeconds % 60;
-
-        if (minutes == 0)
-        {
-            // Seconds only (e.g., "20s")
-            return $"{seconds}s";
-        }
-
-        if (seconds == 0)
-        {
-            // Whole minutes only (e.g., "20m")
-            return $"{minutes}m";
-        }
-
-        return $"{minutes:0}m {seconds:00}s";
-    }
-
-
     private string GetActivityTypeColor(int activityTypeId)
     {
         var type = activityTypes.FirstOrDefault(t => t.Id == activityTypeId);
