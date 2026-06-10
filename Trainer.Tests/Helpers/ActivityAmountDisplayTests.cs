@@ -89,6 +89,15 @@ public class ActivityAmountDisplayTests
         Assert.Equal("45s", ActivityAmountDisplay.FormatDuration(45));
     }
 
+    [Theory]
+    [InlineData(305, "5m 5s")]   // single-digit seconds are not zero-padded
+    [InlineData(330, "5m 30s")]  // two-digit seconds shown as-is
+    [InlineData(600, "10m")]     // whole minutes omit the seconds component
+    public void FormatDuration_MinutesAndSeconds_NoLeadingZeroOnSeconds(int durationSeconds, string expected)
+    {
+        Assert.Equal(expected, ActivityAmountDisplay.FormatDuration(durationSeconds));
+    }
+
     [Fact]
     public void FormatDuration_NullOrZero_ReturnsNull()
     {

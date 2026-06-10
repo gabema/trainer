@@ -10,7 +10,7 @@ internal static class DateTimeHelper
         var totalSeconds = (int)Math.Max(0, elapsed.TotalSeconds);
         var minutes = totalSeconds / 60;
         var seconds = totalSeconds % 60;
-        return $"{minutes:D3}:{seconds:D2}";
+        return $"{minutes}:{seconds:D2}";
     }
 
     /// <summary>
