@@ -1,6 +1,5 @@
 namespace Trainer.Helpers;
 
-using System.Globalization;
 using Trainer.Models;
 
 public static class ActivityAmountDisplay
@@ -10,9 +9,10 @@ public static class ActivityAmountDisplay
         ArgumentNullException.ThrowIfNull(activity);
 
         var activityType = activityTypes.FirstOrDefault(t => t.Id == activity.ActivityTypeId);
+        var amount = DecimalAmount.FormatDisplay(activity.Amount, activityType?.DecimalPlaces ?? 0);
         var amountText = activityType?.Unit != null
-            ? $"{activity.Amount} {activityType.Unit}"
-            : activity.Amount.ToString(CultureInfo.InvariantCulture);
+            ? $"{amount} {activityType.Unit}"
+            : amount;
 
         var durationText = FormatDuration(activity.DurationSeconds);
         var result = durationText != null ? $"{amountText} for {durationText}" : amountText;

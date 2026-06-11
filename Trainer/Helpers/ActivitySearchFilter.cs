@@ -1,6 +1,5 @@
 namespace Trainer.Helpers;
 
-using System.Globalization;
 using Trainer.Models;
 
 /// <summary>
@@ -36,9 +35,10 @@ public static class ActivitySearchFilter
         var locationName = a.KnownLocationId.HasValue
             ? knownLocations.FirstOrDefault(l => l.Id == a.KnownLocationId.Value)?.Name ?? ""
             : "";
+        var amountText = DecimalAmount.FormatDisplay(a.Amount, activityType?.DecimalPlaces ?? 0);
         return typeName.Contains(searchTerm, SearchComparison) ||
                (a.Notes ?? "").Contains(searchTerm, SearchComparison) ||
-               a.Amount.ToString(CultureInfo.InvariantCulture).Contains(searchTerm, SearchComparison) ||
+               amountText.Contains(searchTerm, SearchComparison) ||
                locationName.Contains(searchTerm, SearchComparison);
     }
 

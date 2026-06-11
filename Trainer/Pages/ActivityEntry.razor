@@ -61,7 +61,8 @@
 
         <div class="mb-3">
             <label class="form-label">Amount@(selectedActivityType?.Unit != null ? $" ({selectedActivityType.Unit})" : "")</label>
-            <InputNumber @bind-Value="activity.Amount" class="form-control" min="0" step="1" />
+            <DecimalAmountInput Value="activity.Amount" ValueChanged="OnAmountChanged"
+                                DecimalPlaces="@(selectedActivityType?.DecimalPlaces ?? 0)" />
             <ValidationMessage For="@(() => activity.Amount)" />
         </div>
 
@@ -238,6 +239,13 @@
     {
         selectedActivityType = activityTypes.FirstOrDefault(t => t.Id == activity.ActivityTypeId);
         StateHasChanged();
+    }
+
+    // The amount input is nullable (empty == cleared); Activity.Amount is a non-null
+    // raw integer, so a cleared field maps to 0.
+    private void OnAmountChanged(int? value)
+    {
+        activity.Amount = value ?? 0;
     }
 
     private string GetNavigationPath(string path)
