@@ -57,3 +57,36 @@ The Activities list page SHALL display a **Finish** button next to the **Edit** 
 #### Scenario: Finish from Activities list updates duration and removes from active set
 - **WHEN** the user clicks **Finish** on an active activity in the Activities list
 - **THEN** the activity's Duration is set to elapsed time in MMM:SS format, the activity is saved, and the Finish button disappears from that row
+
+### Requirement: Activities list keeps loading weeks under All time until search results fill the view
+When the Activities date filter is `AllTime` and a non-empty search term is active, the Activities page SHALL continue loading additional available weeks (oldest-remaining after the initial batch) until either the number of displayed (search-filtered) activities is sufficient to make the page scrollable OR all available weeks have been loaded. The page SHALL NOT cap search results to the initially loaded weeks. Loading SHALL stop once no unloaded available week remains, at which point `hasMoreWeeksToLoad` is false.
+
+#### Scenario: Matches exist only in older weeks
+- **WHEN** the date filter is All time, a search term is active, and matching activities exist only in weeks older than the initial batch
+- **THEN** the page loads successive older weeks until those matching activities are displayed (or all weeks are exhausted), rather than stopping at the initial batch
+
+#### Scenario: Initial weeks contain no matches
+- **WHEN** the date filter is All time, a search term is active, and none of the initially loaded weeks contain a matching activity
+- **THEN** the page continues loading older weeks while showing the loading indicator, and only shows "No activities found" once all available weeks are loaded and still produce no matches
+
+#### Scenario: All weeks exhausted
+- **WHEN** every available week has been loaded
+- **THEN** `hasMoreWeeksToLoad` is false and no further load attempts are made
+
+### Requirement: Scroll trigger renders whenever more weeks remain to load
+The Activities page SHALL render the infinite-scroll trigger element whenever `hasMoreWeeksToLoad` is true, independent of whether the current displayed (search-filtered) result set is empty. When the displayed result set is empty but unloaded weeks remain, the page SHALL keep the trigger and/or loading indicator present so that lazy loading can continue.
+
+#### Scenario: Trigger present with empty filtered results
+- **WHEN** the displayed result set is currently empty and more weeks remain to load
+- **THEN** the scroll trigger element is rendered (and observed) so loading continues
+
+#### Scenario: Trigger absent when fully loaded
+- **WHEN** all available weeks have been loaded
+- **THEN** the scroll trigger element is not rendered
+
+### Requirement: Infinite-scroll observer re-arms after each load
+After each week-loading cycle completes and the component re-renders, the Activities page SHALL re-observe the scroll trigger element while `hasMoreWeeksToLoad` is true, so that a trigger that remains within the viewport continues to drive subsequent loads instead of stalling.
+
+#### Scenario: Sparse results keep trigger in view
+- **WHEN** a load completes, the filtered results do not fill the viewport, and the scroll trigger remains visible with more weeks to load
+- **THEN** the observer is re-armed and the next week is loaded without requiring the user to scroll
