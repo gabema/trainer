@@ -1,6 +1,7 @@
 @page "/activity-type"
 @page "/activity-type/{Id:int}"
 @inject IActivityTypeService ActivityTypeService
+@inject IActivityService ActivityService
 @inject NavigationManager Navigation
 
 <PageTitle>@(IsEditMode ? "Edit Activity Type" : "Add Activity Type")</PageTitle>
@@ -41,13 +42,31 @@
         </div>
 
         <div class="mb-3">
+            <label class="form-label">Decimal Places</label>
+            @if (ShowReinterpretWarning)
+            {
+                <div class="alert alert-warning py-2 small mb-2" role="alert">
+                    Changing this will reinterpret all @_activityCount existing
+                    @(_activityCount == 1 ? "activity" : "activities") of this type
+                    (e.g. a stored amount of 125 shows as 125 at 0 places but 1.25 at 2 places).
+                </div>
+            }
+            <InputSelect @bind-Value="activityType.DecimalPlaces" class="form-select">
+                @for (var places = 0; places <= MaxDecimalPlaces; places++)
+                {
+                    <option value="@places">@places</option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="mb-3">
             <label class="form-label">Daily Amount</label>
-            <InputNumber @bind-Value="activityType.DailyAmount" class="form-control" min="0" step="1" />
+            <DecimalAmountInput @bind-Value="activityType.DailyAmount" DecimalPlaces="activityType.DecimalPlaces" />
         </div>
 
         <div class="mb-3">
             <label class="form-label">Weekly Amount</label>
-            <InputNumber @bind-Value="activityType.WeeklyAmount" class="form-control" min="0" step="1" />
+            <DecimalAmountInput @bind-Value="activityType.WeeklyAmount" DecimalPlaces="activityType.DecimalPlaces" />
         </div>
 
         <div class="mb-3">
@@ -73,9 +92,16 @@
     [Parameter]
     public int Id { get; set; }
 
+    private const int MaxDecimalPlaces = 3;
+
     private ActivityType activityType = new();
     private bool IsEditMode => Id > 0;
     private string returnUrl = "/activity";
+    private int _savedDecimalPlaces;
+    private int _activityCount;
+
+    private bool ShowReinterpretWarning =>
+        DecimalPlacesWarning.ShouldWarn(_savedDecimalPlaces, activityType.DecimalPlaces, _activityCount);
 
     protected override async Task OnInitializedAsync()
     {
@@ -103,6 +129,9 @@
             {
                 activityType = existingType;
             }
+
+            _savedDecimalPlaces = activityType.DecimalPlaces;
+            _activityCount = (await ActivityService.GetByActivityTypeIdAsync(Id)).Count;
         }
     }
 

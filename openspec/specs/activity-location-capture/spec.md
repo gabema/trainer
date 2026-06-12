@@ -1,17 +1,28 @@
 ### Requirement: Activity stores optional known location reference
-The `Activity` model SHALL include an optional `KnownLocationId` (nullable string) field in addition to the existing `Latitude` and `Longitude` fields. `KnownLocationId` SHALL default to `null` and SHALL NOT be required for saving an activity.
+The `Activity` model SHALL include an optional `KnownLocationId` (nullable int) field. `KnownLocationId` SHALL default to `null` and SHALL NOT be required for saving an activity. The `Activity` model SHALL NOT contain `Latitude` or `Longitude` fields; coordinates are owned exclusively by the `KnownLocation` record.
 
 #### Scenario: New activity saved without location
 - **WHEN** user submits the activity form with no location selected
-- **THEN** the activity is saved with `KnownLocationId = null`, `Latitude = null`, and `Longitude = null`
+- **THEN** the activity is saved with `KnownLocationId = null`
 
 #### Scenario: New activity saved with known location
 - **WHEN** user selects a known location from the location picker and submits
-- **THEN** the activity is saved with the selected `KnownLocationId` and the known location's `Latitude` and `Longitude`
+- **THEN** the activity is saved with the selected `KnownLocationId` and no coordinate fields
 
 #### Scenario: Existing activity loads with legacy coordinates but no KnownLocationId
 - **WHEN** an activity record in IndexedDB has `latitude`/`longitude` but no `knownLocationId` (legacy data)
-- **THEN** the activity loads with those coordinates and `KnownLocationId = null`
+- **THEN** the activity loads with `KnownLocationId = null` and the stale coordinate bytes are ignored
+
+### Requirement: Activity export and import exclude coordinate fields
+The data export JSON SHALL NOT include `latitude` or `longitude` fields on activity records. When importing a JSON file that contains `latitude`/`longitude` on activity records (produced by an older version of the app), those fields SHALL be silently ignored and SHALL NOT cause an import error.
+
+#### Scenario: Export omits coordinate fields from activities
+- **WHEN** the user exports their data
+- **THEN** no activity record in the resulting JSON contains a `latitude` or `longitude` field
+
+#### Scenario: Import ignores legacy coordinate fields on activities
+- **WHEN** the user imports a JSON file whose activity records include `latitude` and `longitude` fields
+- **THEN** the import succeeds, activities are restored with their `knownLocationId` values, and the coordinate fields are discarded
 
 ### Requirement: Activity form location section shows known-location picker with edit navigation
 The activity add/edit form SHALL display a `<select>` dropdown listing all known location names plus a "— No Location —" option, and an adjacent button. When no location is selected the button shows `+` and navigates to `/known-location?returnUrl=<encoded-return-url>` to create a new known location. When a location is selected the button shows an edit icon and navigates to `/known-location/{id}?returnUrl=<encoded-return-url>` to edit that location. This mirrors the ActivityType field pattern on the same form.

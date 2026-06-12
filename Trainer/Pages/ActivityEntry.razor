@@ -3,8 +3,10 @@
 @inject IActivityService ActivityService
 @inject IActivityTypeService ActivityTypeService
 @inject IKnownLocationService KnownLocationService
+@inject IActiveActivityService ActiveActivityService
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
+@implements IDisposable
 
 <PageTitle>@(IsEditMode ? "Edit Activity" : "Add Activity")</PageTitle>
 
@@ -59,13 +61,25 @@
 
         <div class="mb-3">
             <label class="form-label">Amount@(selectedActivityType?.Unit != null ? $" ({selectedActivityType.Unit})" : "")</label>
-            <InputNumber @bind-Value="activity.Amount" class="form-control" min="0" step="1" />
+            <DecimalAmountInput Value="activity.Amount" ValueChanged="OnAmountChanged"
+                                DecimalPlaces="@(selectedActivityType?.DecimalPlaces ?? 0)" />
             <ValidationMessage For="@(() => activity.Amount)" />
         </div>
 
         <div class="mb-3">
             <label class="form-label">Duration (minutes or M:SS)</label>
-            <InputText @bind-Value="durationInput" class="form-control" placeholder="e.g., 20 or 5:30" />
+            <div class="input-group">
+                <InputText @bind-Value="durationInput" class="form-control" placeholder="e.g., 20 or 5:30" disabled="@_isActive" />
+                <button type="button" class="btn @(_isActive ? "btn-warning" : "btn-outline-secondary")"
+                        @onclick="HandleStartStop"
+                        title="@(_isActive ? "Stop timer and record duration" : "Start timer")">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-1" viewBox="0 0 16 16">
+                        <path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71V3.5z"/>
+                        <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0z"/>
+                    </svg>
+                    @(_isActive ? "Stop" : "Start")
+                </button>
+            </div>
             <div class="form-text">
                 Enter a whole number for minutes (e.g., <code>20</code> for 20 minutes) or <code>M:SS</code> for minutes and seconds (e.g., <code>5:30</code> for 5 minutes 30 seconds).
             </div>
@@ -102,18 +116,19 @@
                         </svg>
                     }
                 </button>
+                <button type="button" class="btn btn-outline-secondary" @onclick="GetLocationAsync" disabled="@_gettingLocation" title="Get Current location">
+                    @if (_gettingLocation)
+                    {
+                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    }
+                    else
+                    {
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M8 0a.5.5 0 0 1 .5.5v.518A7 7 0 0 1 14.982 7.5h.518a.5.5 0 0 1 0 1h-.518A7 7 0 0 1 8.5 14.982v.518a.5.5 0 0 1-1 0v-.518A7 7 0 0 1 1.018 8.5H.5a.5.5 0 0 1 0-1h.518A7 7 0 0 1 7.5.518V.5A.5.5 0 0 1 8 0zm0 2.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11zm0 3a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5z"/>
+                        </svg>
+                    }
+                </button>
             </div>
-            <button type="button" class="btn btn-outline-secondary" @onclick="GetLocationAsync" disabled="@_gettingLocation">
-                @if (_gettingLocation)
-                {
-                    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-                    <span>Getting location...</span>
-                }
-                else
-                {
-                    <span>Use My Location</span>
-                }
-            </button>
             @if (!string.IsNullOrEmpty(_locationError))
             {
                 <div class="text-danger small mt-1">@_locationError</div>
@@ -141,6 +156,7 @@
     private string? durationError;
     private bool _gettingLocation;
     private string? _locationError;
+    private bool _isActive;
 
     private int ActivityTypeId
     {
@@ -155,7 +171,9 @@
     protected override async Task OnInitializedAsync()
     {
         activityTypes = await ActivityTypeService.GetAllAsync();
-        _knownLocations = await KnownLocationService.GetAllAsync();
+        _knownLocations = (await KnownLocationService.GetAllAsync())
+            .OrderBy(l => l.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
         if (IsEditMode)
         {
@@ -192,8 +210,6 @@
                             Amount = sourceActivity.Amount,
                             Notes = sourceActivity.Notes,
                             DurationSeconds = sourceActivity.DurationSeconds,
-                            Latitude = sourceActivity.Latitude,
-                            Longitude = sourceActivity.Longitude,
                             KnownLocationId = sourceActivity.KnownLocationId
                         };
                     }
@@ -204,12 +220,32 @@
         _selectedLocationId = activity.KnownLocationId;
         durationInput = FormatDuration(activity.DurationSeconds);
         UpdateSelectedActivityType();
+        _isActive = ActiveActivityService.IsActive(activity.Id);
+        ActiveActivityService.OnChanged += OnActiveStateChanged;
+    }
+
+    private void OnActiveStateChanged()
+    {
+        _isActive = ActiveActivityService.IsActive(activity.Id);
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        ActiveActivityService.OnChanged -= OnActiveStateChanged;
     }
 
     private void UpdateSelectedActivityType()
     {
         selectedActivityType = activityTypes.FirstOrDefault(t => t.Id == activity.ActivityTypeId);
         StateHasChanged();
+    }
+
+    // The amount input is nullable (empty == cleared); Activity.Amount is a non-null
+    // raw integer, so a cleared field maps to 0.
+    private void OnAmountChanged(int? value)
+    {
+        activity.Amount = value ?? 0;
     }
 
     private string GetNavigationPath(string path)
@@ -240,34 +276,55 @@
 
     private async Task HandleSubmit()
     {
-        if (!TryParseDurationInput(durationInput, out var durationSeconds, out var error))
+        if (!await SaveActivityAsync())
+            return;
+        Navigation.NavigateTo(GetNavigationPath("/"));
+    }
+
+    private async Task HandleStartStop()
+    {
+        if (_isActive)
+        {
+            var startTime = ActiveActivityService.GetAll()[activity.Id];
+            durationInput = DateTimeHelper.FormatElapsed(DateTime.Now - startTime);
+            if (!await SaveActivityAsync())
+                return;
+            ActiveActivityService.Finish(activity.Id);
+        }
+        else
+        {
+            if (!await SaveActivityAsync())
+                return;
+            // Use the activity's own When as the timer start so elapsed reflects
+            // time since the activity began, not since the button was pressed.
+            ActiveActivityService.Start(activity.Id, activity.When);
+        }
+    }
+
+    private async Task<bool> SaveActivityAsync()
+    {
+        if (!DurationInput.TryParse(durationInput, out var durationSeconds, out var error))
         {
             durationError = error;
-            return;
+            return false;
         }
 
         durationError = null;
         activity.DurationSeconds = durationSeconds;
         activity.Notes = activity.Notes.NullIfEmptyOrWhitespace();
 
-        // Apply selected known location (or clear)
         activity.KnownLocationId = _selectedLocationId;
-        var selectedLocation = _selectedLocationId.HasValue
-            ? _knownLocations.FirstOrDefault(l => l.Id == _selectedLocationId.Value)
-            : null;
-        activity.Latitude = selectedLocation?.Latitude;
-        activity.Longitude = selectedLocation?.Longitude;
 
-        if (IsEditMode)
+        if (activity.Id > 0)
         {
             await ActivityService.UpdateAsync(activity);
         }
         else
         {
-            await ActivityService.AddAsync(activity);
+            activity = await ActivityService.AddAsync(activity);
         }
 
-        Navigation.NavigateTo(GetNavigationPath("/"));
+        return true;
     }
 
     private void Cancel()
@@ -363,7 +420,9 @@
                         Name = name
                     };
                     var saved = await KnownLocationService.SaveAsync(newLocation);
-                    _knownLocations = await KnownLocationService.GetAllAsync();
+                    _knownLocations = (await KnownLocationService.GetAllAsync())
+                        .OrderBy(l => l.Name, StringComparer.OrdinalIgnoreCase)
+                        .ToList();
                     _selectedLocationId = saved.Id;
                 }
             }
@@ -386,76 +445,5 @@
         public string? Error { get; set; }
     }
 
-    private static bool TryParseDurationInput(string? input, out int? durationSeconds, out string? error)
-    {
-        durationSeconds = null;
-        error = null;
-
-        if (string.IsNullOrWhiteSpace(input))
-        {
-            return true;
-        }
-
-        input = input.Trim();
-        var parts = input.Split(':');
-
-        if (parts.Length == 1)
-        {
-            // Single integer = minutes, e.g., "20" means 20 minutes
-            if (!int.TryParse(parts[0], out var minutesOnly))
-            {
-                error = "Duration must be a number of minutes or in M:SS format.";
-                return false;
-            }
-
-            if (minutesOnly < 0)
-            {
-                error = "Duration cannot be negative.";
-                return false;
-            }
-
-            if (minutesOnly > 999)
-            {
-                error = "Minutes must be less than 1000.";
-                return false;
-            }
-
-            durationSeconds = minutesOnly * 60;
-            return true;
-        }
-
-        if (parts.Length != 2)
-        {
-            error = "Duration must be a number of minutes (e.g., 20) or in M:SS format (e.g., 5:30).";
-            return false;
-        }
-
-        if (!int.TryParse(parts[0], out var minutes) || !int.TryParse(parts[1], out var seconds))
-        {
-            error = "Minutes and seconds must be numeric.";
-            return false;
-        }
-
-        if (minutes < 0 || seconds < 0)
-        {
-            error = "Duration cannot be negative.";
-            return false;
-        }
-
-        if (seconds >= 60)
-        {
-            error = "Seconds must be between 00 and 59.";
-            return false;
-        }
-
-        if (minutes > 999)
-        {
-            error = "Minutes must be less than 1000.";
-            return false;
-        }
-
-        durationSeconds = (minutes * 60) + seconds;
-        return true;
-    }
 }
 

@@ -1,9 +1,4 @@
-// Notification helper for guided activity notes
 window.notificationHelper = {
-    _dbName: 'TrainerDB',
-    _dbVersion: 1,
-    _storeName: 'guidedNotifications',
-    
     // Request notification permission
     requestPermission: async function() {
         if (!('Notification' in window)) {
@@ -24,106 +19,6 @@ window.notificationHelper = {
         } catch (error) {
             return { granted: false, error: error.message };
         }
-    },
-    
-    // Initialize IndexedDB for storing notification state
-    _initDB: function() {
-        return new Promise((resolve, reject) => {
-            const request = indexedDB.open(this._dbName, this._dbVersion);
-            
-            request.onerror = () => reject(request.error);
-            request.onsuccess = () => resolve(request.result);
-            
-            request.onupgradeneeded = (event) => {
-                const db = event.target.result;
-                if (!db.objectStoreNames.contains(this._storeName)) {
-                    db.createObjectStore(this._storeName, { keyPath: 'activityId' });
-                }
-            };
-        });
-    },
-    
-    // Store notification state. Throws if IndexedDB write fails so the caller can avoid showing
-    // a notification whose Previous/Next buttons would be non-functional.
-    _storeState: async function(activityId, currentLineIndex, notesLines) {
-        const db = await this._initDB();
-        const transaction = db.transaction([this._storeName], 'readwrite');
-        const store = transaction.objectStore(this._storeName);
-
-        await new Promise((resolve, reject) => {
-            const request = store.put({
-                activityId: activityId,
-                currentLineIndex: currentLineIndex,
-                notesLines: notesLines,
-                timestamp: Date.now()
-            });
-            request.onsuccess = () => resolve();
-            request.onerror = () => reject(request.error);
-        });
-    },
-    
-    // Get notification state (for potential resume or client-side checks)
-    _getState: async function(activityId) {
-        try {
-            const db = await this._initDB();
-            const transaction = db.transaction([this._storeName], 'readonly');
-            const store = transaction.objectStore(this._storeName);
-            
-            return new Promise((resolve, reject) => {
-                const request = store.get(activityId);
-                request.onsuccess = () => resolve(request.result);
-                request.onerror = () => reject(request.error);
-            });
-        } catch (error) {
-            console.error('Error getting notification state:', error);
-            return null;
-        }
-    },
-    
-    // Remove notification state (prevents accumulation; also called by service worker on notificationclose)
-    _removeState: async function(activityId) {
-        try {
-            const db = await this._initDB();
-            const transaction = db.transaction([this._storeName], 'readwrite');
-            const store = transaction.objectStore(this._storeName);
-            await new Promise((resolve, reject) => {
-                const request = store.delete(activityId);
-                request.onsuccess = () => resolve();
-                request.onerror = () => reject(request.error);
-            });
-        } catch (error) {
-            console.error('Error removing notification state:', error);
-        }
-    },
-
-    // Clear guided notification state for an activity (e.g. when activity is deleted or notes changed).
-    // Dismisses any visible notification with the matching tag, then removes IndexedDB state.
-    clearGuidedState: async function(activityId) {
-        const tag = `guided-${activityId}`;
-        try {
-            const registration = await this._getRegistration();
-            const notifications = await registration.getNotifications();
-            for (const n of notifications) {
-                if (n.tag === tag) {
-                    n.close();
-                }
-            }
-        } catch (error) {
-            console.error('Error closing guided notification:', error);
-        }
-        await this._removeState(activityId);
-    },
-    
-    // Split notes into lines, filtering empty lines
-    _splitNotes: function(notes) {
-        if (!notes || typeof notes !== 'string') {
-            return [];
-        }
-        
-        return notes
-            .split(/\r?\n/)
-            .map(line => line.trim())
-            .filter(line => line.length > 0);
     },
     
     // Get service worker registration
@@ -150,54 +45,55 @@ window.notificationHelper = {
         return '/favicon.png';
     },
     
-    // Start guided notification
-    startGuidedNotification: async function(activityId, notes) {
-        // Check permission first
-        const permissionResult = await this.requestPermission();
-        if (!permissionResult.granted) {
-            throw new Error(permissionResult.error || 'Notification permission not granted');
+    // Show a browser notification for a started active activity.
+    // Safe to call even if permission is not granted — exits silently.
+    startActiveNotification: async function(activityId, name, elapsed) {
+        if (!('Notification' in window) || Notification.permission !== 'granted') return;
+        try {
+            const registration = await this._getRegistration();
+            const iconUrl = this._getIconUrl();
+            await registration.showNotification(name, {
+                tag: `active-${activityId}`,
+                body: `Active — ${elapsed}`,
+                icon: iconUrl,
+                badge: iconUrl,
+                renotify: false,
+                silent: true
+            });
+        } catch (e) {
+            console.warn('startActiveNotification failed:', e);
         }
-        
-        // Split notes into lines
-        const notesLines = this._splitNotes(notes);
-        if (notesLines.length === 0) {
-            throw new Error('No notes to display');
+    },
+
+    // Update an existing active notification with the latest elapsed time.
+    // Uses the same tag so the notification is replaced silently.
+    updateActiveNotification: async function(activityId, name, elapsed) {
+        if (!('Notification' in window) || Notification.permission !== 'granted') return;
+        try {
+            const registration = await this._getRegistration();
+            const iconUrl = this._getIconUrl();
+            await registration.showNotification(name, {
+                tag: `active-${activityId}`,
+                body: `Active — ${elapsed}`,
+                icon: iconUrl,
+                badge: iconUrl,
+                renotify: false,
+                silent: true
+            });
+        } catch (e) {
+            console.warn('updateActiveNotification failed:', e);
         }
-        
-        // Store state
-        await this._storeState(activityId, 0, notesLines);
-        
-        // Get service worker registration
-        const registration = await this._getRegistration();
-        
-        // Show first line notification (use base path for subpath deployment)
-        const iconUrl = this._getIconUrl();
-        const tag = `guided-${activityId}`;
-        const options = {
-            body: notesLines[0],
-            tag: tag,
-            icon: iconUrl,
-            badge: iconUrl,
-            requireInteraction: true,
-            actions: [
-                {
-                    action: 'previous',
-                    title: 'Previous',
-                    icon: iconUrl
-                },
-                {
-                    action: 'next',
-                    title: 'Next',
-                    icon: iconUrl
-                }
-            ],
-            data: {
-                activityId: activityId,
-                currentLineIndex: 0,
-                totalLines: notesLines.length
-            }
-        };
-        
-        await registration.showNotification('Activity Notes', options);
+    },
+
+    // Close the browser notification for a finished active activity.
+    closeActiveNotification: async function(activityId) {
+        try {
+            const registration = await this._getRegistration();
+            const tag = `active-${activityId}`;
+            const notifications = await registration.getNotifications({ tag });
+            for (const n of notifications) n.close();
+        } catch (e) {
+            console.warn('closeActiveNotification failed:', e);
+        }
     }
 };

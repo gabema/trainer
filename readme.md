@@ -57,3 +57,19 @@ The Net Benefit buttons are toggleable can either the green positive or red nega
 The Daily amount and Weekly Amounts allow for whole numbers.
 
 Clicking the Add or Update button saves changes and returns to the activity screen.
+
+# Development
+
+## GitNexus MCP Server
+
+This project is indexed by [GitNexus](https://www.npmjs.com/package/gitnexus) for code intelligence. Start the GitNexus MCP server with:
+
+```
+npx -y gitnexus@latest mcp
+```
+
+Start the GitNexus web server UI with:
+
+```
+npx gitnexus@latest serve
+```

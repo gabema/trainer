@@ -16,27 +16,13 @@
             <div class="card">
                 <div class="card-body">
                     <div class="row g-3">
-                        <div class="col-md-6">
-                            <SearchFilter Value="@searchTerm" ValueChanged="OnSearchTermChanged" Placeholder="Search by activity type, notes, or amount..." />
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Location</label>
-                            <select class="form-select" value="@(_selectedLocationId?.ToString() ?? "")" @onchange="OnLocationFilterChanged">
-                                <option value="">All Locations</option>
-                                @foreach (var loc in _knownLocations)
-                                {
-                                    <option value="@loc.Id">@loc.Name</option>
-                                }
-                            </select>
+                        <div class="col-md-9">
+                            <SearchFilter Value="@searchTerm" ValueChanged="OnSearchTermChanged" Placeholder="Search by activity type, notes, amount, or location…" />
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">Date Duration</label>
                             <select class="form-select" value="@((int)selectedDateFilter)" @onchange="OnDateFilterChanged">
                                 <option value="@((int)DateFilterOption.AllTime)">All time</option>
-                                <option value="@((int)DateFilterOption.Last24Hours)">Last 24 hours</option>
-                                <option value="@((int)DateFilterOption.CurrentWeek)">Current Week</option>
-                                <option value="@((int)DateFilterOption.Last7Days)">Last 7 days</option>
-                                <option value="@((int)DateFilterOption.Last4Weeks)">Last 4 Weeks</option>
                                 <option value="@((int)DateFilterOption.Custom)">Custom Range</option>
                             </select>
                         </div>
@@ -76,39 +62,37 @@
                         <div class="activity-cards-container">
                             @foreach (var activity in displayedActivities)
                             {
-                                <ActivityCard Activity="@activity" ActivityTypes="@activityTypes" OnActivityDeleted="HandleActivityDeleted" />
-                            }
-                            @if (hasMoreWeeksToLoad)
-                            {
-                                <div id="scroll-trigger" style="height: 20px;"></div>
-                            }
-                            @if (isLoading)
-                            {
-                                <div class="text-center py-3">
-                                    <div class="spinner-border spinner-border-sm" role="status">
-                                        <span class="visually-hidden">Loading...</span>
-                                    </div>
-                                </div>
+                                <ActivityCard Activity="@activity" ActivityTypes="@activityTypes" KnownLocations="@_knownLocations" OnActivityDeleted="HandleActivityDeleted" />
                             }
                         </div>
                     }
-                    else if (isLoading)
+                    else if (!isLoading && !hasMoreWeeksToLoad)
                     {
-                        <div class="text-center py-5">
+                        <p class="text-muted">No activities found. @if (!string.IsNullOrWhiteSpace(searchTerm) || selectedDateFilter != DateFilterOption.AllTime) { <text>Try adjusting your search or filters.</text> } else { <text>Click "Add New Activity" to get started.</text> }</p>
+                    }
+
+                    @* Render the scroll trigger whenever more weeks remain — even when the current
+                       filtered result set is empty — so lazy loading can continue through weeks that
+                       contain no matches (issue #85). *@
+                    @if (hasMoreWeeksToLoad)
+                    {
+                        <div id="scroll-trigger" style="height: 20px;"></div>
+                    }
+                    @if (isLoading)
+                    {
+                        <div class="text-center py-3">
                             <div class="spinner-border" role="status">
                                 <span class="visually-hidden">Loading...</span>
                             </div>
                         </div>
-                    }
-                    else
-                    {
-                        <p class="text-muted">No activities found. @if (!string.IsNullOrWhiteSpace(searchTerm) || selectedDateFilter != DateFilterOption.AllTime) { <text>Try adjusting your search or filters.</text> } else { <text>Click "Add New Activity" to get started.</text> }</p>
                     }
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<AppVersionFooter />
 
 @code {
     [SupplyParameterFromQuery(Name = "date")]
@@ -121,15 +105,17 @@
     private List<Activity> displayedActivities = new();
     private List<ActivityType> activityTypes = new();
     private List<KnownLocation> _knownLocations = new();
-    private int? _selectedLocationId;
     private string searchTerm = string.Empty;
-    private DateFilterOption selectedDateFilter = DateFilterOption.Last4Weeks;
+    private DateFilterOption selectedDateFilter = DateFilterOption.AllTime;
     private DateTime? customStartDate;
     private DateTime? customEndDate;
     private HashSet<string> loadedWeekKeys = new();
     private HashSet<string> availableWeekKeys = new();
     private bool isLoading = false;
     private bool hasMoreWeeksToLoad = true;
+    // Minimum displayed (search-filtered) activities to keep loading toward under All time + active
+    // search, so the page becomes scrollable and matches in older weeks surface (issue #85).
+    private const int MinDisplayedToFill = 20;
     private DotNetObjectReference<Activities>? objRef;
     private IJSObjectReference? infiniteScrollModule;
     private bool _initialized = false;
@@ -139,10 +125,6 @@
     private enum DateFilterOption
     {
         AllTime,
-        Last24Hours,
-        CurrentWeek,
-        Last7Days,
-        Last4Weeks,
         Custom
     }
 
@@ -236,7 +218,7 @@
             // Reset date filter when query param is cleared (only if it was previously set)
             if (!string.IsNullOrEmpty(oldFilterDate))
             {
-                selectedDateFilter = DateFilterOption.Last4Weeks;
+                selectedDateFilter = DateFilterOption.AllTime;
                 customStartDate = null;
                 customEndDate = null;
             }
@@ -323,9 +305,12 @@
                 
                 // Check if there are more weeks to load
                 hasMoreWeeksToLoad = loadedWeekKeys.Count < availableWeekKeys.Count;
-                
+
                 // Apply filters to update displayed activities
                 ApplyFilters();
+
+                // Keep loading older weeks if a search filter leaves the view too sparse (issue #85)
+                await FillForSearchAsync();
             }
         }
         finally
@@ -347,11 +332,16 @@
         try
         {
             await LoadNextWeekInternal();
+
+            // Top up further weeks if a search filter leaves the view too sparse (issue #85)
+            await FillForSearchAsync();
         }
         finally
         {
             isLoading = false;
             StateHasChanged();
+            // Re-arm the observer: a trigger that stays in view (sparse results) must keep firing
+            await SetupScrollObserver();
         }
     }
 
@@ -384,10 +374,7 @@
         else
         {
             // All time - load next available week (most recent that hasn't been loaded)
-            nextWeekKey = availableWeekKeys
-                .Where(wk => !loadedWeekKeys.Contains(wk))
-                .OrderByDescending(w => w)
-                .FirstOrDefault();
+            nextWeekKey = WeekFillLoader.NextWeekKey(availableWeekKeys, loadedWeekKeys);
 
             if (nextWeekKey == null)
             {
@@ -421,37 +408,48 @@
 
         // Apply search filter and update displayed activities
         ApplyFilters();
-        
+
         return true;
+    }
+
+    /// <summary>
+    /// Under All time with an active search term, keep loading older weeks until enough matching
+    /// activities are displayed to make the page scrollable, or all available weeks are loaded.
+    /// Without this, the search filter (applied client-side over loaded weeks) silently caps results
+    /// to the initial batch and the infinite-scroll observer never re-fires (issue #85).
+    /// </summary>
+    private async Task FillForSearchAsync()
+    {
+        if (selectedDateFilter != DateFilterOption.AllTime || string.IsNullOrWhiteSpace(searchTerm))
+        {
+            return;
+        }
+
+        hasMoreWeeksToLoad = await WeekFillLoader.FillAsync(
+            availableWeekKeys,
+            loadedWeekKeys,
+            async weekKey =>
+            {
+                var weekStart = WeekHelper.GetWeekStartDate(weekKey);
+                var weekEnd = WeekHelper.GetWeekEndDate(weekKey);
+                var weekActivities = await ActivityService.GetAllAsync(weekStart, weekEnd);
+
+                allLoadedActivities.AddRange(weekActivities);
+                loadedWeekKeys.Add(weekKey);
+                ApplyFilters();
+            },
+            () => displayedActivities.Count,
+            MinDisplayedToFill);
     }
 
 
     private (DateTime? StartDate, DateTime? EndDate) GetDateFilterRange()
     {
-        var now = DateTime.Now;
-        
-        switch (selectedDateFilter)
+        if (selectedDateFilter == DateFilterOption.Custom && customStartDate.HasValue && customEndDate.HasValue)
         {
-            case DateFilterOption.Last24Hours:
-                return (now.AddHours(-24), now);
-            case DateFilterOption.CurrentWeek:
-                var daysToMonday = ((int)now.DayOfWeek - (int)DayOfWeek.Monday + 7) % 7;
-                var currentWeekStart = now.AddDays(-daysToMonday).Date;
-                var currentWeekEnd = currentWeekStart.AddDays(6).Date.AddHours(23).AddMinutes(59).AddSeconds(59);
-                return (currentWeekStart, currentWeekEnd);
-            case DateFilterOption.Last7Days:
-                return (now.AddDays(-7), now);
-            case DateFilterOption.Last4Weeks:
-                return (now.AddDays(-28), now);
-            case DateFilterOption.Custom:
-                if (customStartDate.HasValue && customEndDate.HasValue)
-                {
-                    return (customStartDate.Value.Date, customEndDate.Value.Date.AddHours(23).AddMinutes(59).AddSeconds(59));
-                }
-                return (null, null);
-            default:
-                return (null, null); // All time
+            return (customStartDate.Value.Date, customEndDate.Value.Date.AddHours(23).AddMinutes(59).AddSeconds(59));
         }
+        return (null, null); // AllTime or Custom with no dates
     }
 
     private void ApplyFilters()
@@ -468,14 +466,11 @@
             }
         }
 
-        // Apply location filter
-        filtered = ActivitySearchFilter.FilterByLocation(filtered, _selectedLocationId);
-
         // Remove private activity types unless their name matches the active search term
         filtered = ActivitySearchFilter.FilterPrivate(filtered, searchTerm, activityTypes);
 
-        // Apply search filter (searches activity type name, notes, and amount)
-        filtered = ActivitySearchFilter.FilterBySearch(filtered, searchTerm, activityTypes);
+        // Apply search filter (searches activity type name, notes, amount, and location name)
+        filtered = ActivitySearchFilter.FilterBySearch(filtered, searchTerm, activityTypes, _knownLocations);
 
         displayedActivities = filtered.OrderByDescending(a => a.When).ToList();
     }
@@ -508,13 +503,6 @@
     private void OnSearchTermChanged(string value)
     {
         searchTerm = value;
-        ApplyFilters();
-        StateHasChanged();
-    }
-
-    private void OnLocationFilterChanged(ChangeEventArgs e)
-    {
-        _selectedLocationId = int.TryParse(e.Value?.ToString(), out var id) ? id : (int?)null;
         ApplyFilters();
         StateHasChanged();
     }

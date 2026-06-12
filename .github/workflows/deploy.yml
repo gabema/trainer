@@ -29,7 +29,9 @@ jobs:
       run: dotnet restore
     
     - name: Build
-      run: dotnet build --configuration Release --no-restore
+      run: |
+        VERSION="${{ github.event.release.tag_name }}"
+        dotnet build --configuration Release --no-restore -p:InformationalVersion=${VERSION#v}
     
     - name: Publish
       run: dotnet publish Trainer/Trainer.csproj --configuration Release --output ./publish --no-build -p:BasePath=/trainer/

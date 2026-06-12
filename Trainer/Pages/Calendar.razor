@@ -26,18 +26,8 @@
                 <div class="card">
                     <div class="card-body">
                         <div class="row g-3">
-                            <div class="col-md-6">
-                                <SearchFilter Value="@searchTerm" ValueChanged="OnSearchTermChanged" Placeholder="Search by activity type, notes, or amount..." />
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Location</label>
-                                <select class="form-select" value="@(_selectedLocationId?.ToString() ?? "")" @onchange="OnLocationFilterChanged">
-                                    <option value="">All Locations</option>
-                                    @foreach (var loc in _knownLocations)
-                                    {
-                                        <option value="@loc.Id">@loc.Name</option>
-                                    }
-                                </select>
+                            <div class="col-md-12">
+                                <SearchFilter Value="@searchTerm" ValueChanged="OnSearchTermChanged" Placeholder="Search by activity type, notes, amount, or location…" />
                             </div>
                         </div>
                     </div>
@@ -132,6 +122,8 @@
     }
 </div>
 
+<AppVersionFooter />
+
 @code {
     [SupplyParameterFromQuery(Name = "search")]
     public string? FilterSearch { get; set; }
@@ -140,10 +132,9 @@
     private Dictionary<DateTime, List<Activity>> activitiesByDay = new();
     private List<ActivityType> activityTypes = new();
     private List<KnownLocation> _knownLocations = new();
-    private int? _selectedLocationId;
     private HashSet<string> loadedWeekKeys = new();
     private HashSet<string> availableWeekKeys = new();
-    private bool isLoading = false;
+    private bool isLoading = true;
     private bool hasMoreMonthsToLoad = true;
     private (int Year, int Month) oldestLoadedMonth = (DateTime.Now.Year, DateTime.Now.Month);
     private DotNetObjectReference<Calendar>? objRef;
@@ -378,9 +369,8 @@
             return Enumerable.Empty<(int, int)>();
         }
 
-        var filtered = ActivitySearchFilter.FilterByLocation(activities, _selectedLocationId);
-        filtered = ActivitySearchFilter.FilterPrivate(filtered, searchTerm, activityTypes);
-        filtered = ActivitySearchFilter.FilterBySearch(filtered, searchTerm, activityTypes);
+        var filtered = ActivitySearchFilter.FilterPrivate(activities, searchTerm, activityTypes);
+        filtered = ActivitySearchFilter.FilterBySearch(filtered, searchTerm, activityTypes, _knownLocations);
         return filtered
             .GroupBy(a => a.ActivityTypeId)
             .Select(g => (g.Key, g.Count()))
@@ -390,12 +380,6 @@
     private void OnSearchTermChanged(string value)
     {
         searchTerm = value;
-        StateHasChanged();
-    }
-
-    private void OnLocationFilterChanged(ChangeEventArgs e)
-    {
-        _selectedLocationId = int.TryParse(e.Value?.ToString(), out var id) ? id : (int?)null;
         StateHasChanged();
     }
 

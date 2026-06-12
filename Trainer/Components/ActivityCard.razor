@@ -1,7 +1,9 @@
 @inject NavigationManager Navigation
 @inject IActivityTypeService ActivityTypeService
 @inject IActivityService ActivityService
+@inject IActiveActivityService ActiveActivityService
 @inject IJSRuntime JSRuntime
+@implements IDisposable
 
 <div class="card activity-card mb-3 position-relative" style="cursor: pointer;" @onclick="() => ToggleOverlay()">
     <div class="card-header d-flex justify-content-between align-items-center">
@@ -29,6 +31,16 @@
                     </svg>
                     <span>Edit</span>
                 </button>
+                @if (ActiveActivityService.IsActive(Activity.Id))
+                {
+                    <button class="btn btn-success activity-card-overlay-button" @onclick="HandleFinish" title="Finish">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71V3.5z"/>
+                            <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0z"/>
+                        </svg>
+                        <span>Finish</span>
+                    </button>
+                }
                 <button class="btn btn-secondary activity-card-overlay-button" @onclick="() => HandleDuplicate()" title="Duplicate">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
                         <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1z"/>
@@ -36,16 +48,6 @@
                     </svg>
                     <span>Duplicate</span>
                 </button>
-                @if (!string.IsNullOrWhiteSpace(Activity.Notes))
-                {
-                    <button class="btn btn-info activity-card-overlay-button" @onclick="() => HandleGuided()" title="Guided">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
-                            <path d="M5.255 5.786a.237.237 0 0 0 .241.247h.825c.138 0 .248-.113.266-.25.09-.656.54-1.134 1.342-1.134.686 0 1.314.343 1.314 1.168 0 .635-.374.927-.965 1.371-.673.489-1.206 1.06-1.168 1.987l.003.217a.25.25 0 0 0 .25.246h.811a.25.25 0 0 0 .25-.25v-.105c0-.718.273-.927 1.01-1.486.609-.463 1.244-.977 1.244-2.056 0-1.511-1.276-2.241-2.673-2.241-1.267 0-2.655.59-2.75 2.286m1.557 5.763c0 .533.425.927 1.01.927.609 0 1.028-.394 1.028-.927 0-.552-.42-.94-1.029-.94-.584 0-1.009.388-1.009.94"/>
-                        </svg>
-                        <span>Guided</span>
-                    </button>
-                }
                 <button class="btn btn-danger activity-card-overlay-button" @onclick="() => HandleDelete()" title="Delete">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
                         <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
@@ -85,57 +87,46 @@
     public List<ActivityType> ActivityTypes { get; set; } = new();
 
     [Parameter]
+    public List<KnownLocation> KnownLocations { get; set; } = new();
+
+    [Parameter]
     public EventCallback OnActivityDeleted { get; set; }
 
     private bool showOverlay = false;
     private bool showDeleteConfirmation = false;
+
+    protected override void OnInitialized()
+    {
+        ActiveActivityService.OnChanged += OnActiveStateChanged;
+    }
+
+    private void OnActiveStateChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        ActiveActivityService.OnChanged -= OnActiveStateChanged;
+    }
+
+    private async Task HandleFinish()
+    {
+        if (!ActiveActivityService.GetAll().TryGetValue(Activity.Id, out var startTime))
+            return;
+
+        var elapsed = DateTime.Now - startTime;
+        Activity.DurationSeconds = (int)elapsed.TotalSeconds;
+        await ActivityService.UpdateAsync(Activity);
+        ActiveActivityService.Finish(Activity.Id);
+        showOverlay = false;
+        await OnActivityDeleted.InvokeAsync(); // triggers parent list refresh
+    }
 
     private string GetActivityTypeName()
     {
         return ActivityTypes.FirstOrDefault(t => t.Id == Activity.ActivityTypeId)?.Name ?? "Unknown";
     }
 
-    private string GetAmountDisplay()
-    {
-        var activityType = ActivityTypes.FirstOrDefault(t => t.Id == Activity.ActivityTypeId);
-        var amountText = activityType?.Unit != null
-            ? $"{Activity.Amount} {activityType.Unit}"
-            : Activity.Amount.ToString();
-
-        var durationText = FormatDuration(Activity.DurationSeconds);
-        if (!string.IsNullOrEmpty(durationText))
-        {
-            return $"{amountText} for {durationText}";
-        }
-
-        return amountText;
-    }
-
-    private static string? FormatDuration(int? durationSeconds)
-    {
-        if (!durationSeconds.HasValue || durationSeconds.Value <= 0)
-        {
-            return null;
-        }
-
-        var totalSeconds = durationSeconds.Value;
-        var minutes = totalSeconds / 60;
-        var seconds = totalSeconds % 60;
-
-        if (minutes == 0)
-        {
-            // Seconds only (e.g., "20s")
-            return $"{seconds}s";
-        }
-
-        if (seconds == 0)
-        {
-            // Whole minutes only (e.g., "20m")
-            return $"{minutes}m";
-        }
-
-        return $"{minutes:0}m {seconds:00}s";
-    }
+    private string GetAmountDisplay() =>
+        ActivityAmountDisplay.Format(Activity, ActivityTypes, KnownLocations);
 
     private void ToggleOverlay()
     {
@@ -168,26 +159,6 @@
         Navigation.NavigateTo(fullPath);
     }
 
-    private async Task HandleGuided()
-    {
-        if (string.IsNullOrWhiteSpace(Activity.Notes))
-        {
-            return;
-        }
-
-        try
-        {
-            CloseOverlay();
-            await JSRuntime.InvokeVoidAsync("notificationHelper.startGuidedNotification", Activity.Id, Activity.Notes ?? "");
-        }
-        catch (Exception ex)
-        {
-            // Handle error - could show a toast notification or alert
-            // For now, we'll just log it
-            Console.WriteLine($"Error starting guided notification: {ex.Message}");
-        }
-    }
-
     private void HandleDelete()
     {
         showOverlay = false;
@@ -206,14 +177,6 @@
         showDeleteConfirmation = false;
         var activityId = Activity.Id;
         await ActivityService.DeleteAsync(activityId);
-        try
-        {
-            await JSRuntime.InvokeVoidAsync("notificationHelper.clearGuidedState", activityId);
-        }
-        catch
-        {
-            // Ignore if notification helper or IndexedDB unavailable
-        }
         await OnActivityDeleted.InvokeAsync();
         StateHasChanged();
     }

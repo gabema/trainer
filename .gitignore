@@ -6,6 +6,9 @@
 # dotenv files
 .env
 
+# Dont checkin archived changes, but keep the directory for git to track
+openspec/changes/archive/*
+
 # User-specific files
 *.rsuser
 *.suo

@@ -19,4 +19,25 @@
     <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
   </ItemGroup>
 
+  <Target Name="GenerateBuildInfo" BeforeTargets="BeforeBuild">
+    <PropertyGroup>
+      <_BuildVersion Condition="'$(InformationalVersion)' != ''">$(InformationalVersion)</_BuildVersion>
+      <_BuildVersion Condition="'$(InformationalVersion)' == ''">dev</_BuildVersion>
+    </PropertyGroup>
+    <ItemGroup>
+      <_BuildInfoLines Include="namespace Trainer%3B" />
+      <_BuildInfoLines Include="internal static class BuildInfo" />
+      <_BuildInfoLines Include="{" />
+      <_BuildInfoLines Include="    public const string Version = &quot;$(_BuildVersion)&quot;%3B" />
+      <_BuildInfoLines Include="}" />
+    </ItemGroup>
+    <WriteLinesToFile
+      File="$(IntermediateOutputPath)BuildInfo.g.cs"
+      Lines="@(_BuildInfoLines)"
+      Overwrite="true" />
+    <ItemGroup>
+      <Compile Include="$(IntermediateOutputPath)BuildInfo.g.cs" />
+    </ItemGroup>
+  </Target>
+
 </Project>

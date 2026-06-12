@@ -63,6 +63,9 @@ internal class ExportImportService(IStorageService storageService, IActivityServ
         {
             using var jsonDoc = JsonDocument.Parse(jsonData);
             var root = jsonDoc.RootElement;
+
+            await _storageService.ClearAsync().ConfigureAwait(false);
+
             bool activitiesImported = false;
 
             // Handle activities - support both old format (array) and new format (weekly object)
