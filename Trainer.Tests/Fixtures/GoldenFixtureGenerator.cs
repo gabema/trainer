@@ -218,6 +218,39 @@ public class GoldenFixtureGenerator
     }
 
     /// <summary>
+    /// Pins CROSS-ZONE behavior: reads the Los Angeles fixture and re-serializes it under
+    /// the current process timezone. DateTimeConverter.Read returns dto.DateTime (Kind
+    /// Unspecified) for non-zero offsets, discarding the parsed offset, so Write then
+    /// recomputes it from TimeZoneInfo.Local. Whether that shifts the instant is the
+    /// question the Rust representation hinges on, so it is recorded rather than reasoned about.
+    /// </summary>
+    [Fact]
+    public void GenerateCrossZoneFixture()
+    {
+        if (!GenerationRequested)
+            return;
+
+        var options = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            WriteIndented = false,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+            Converters = { new DateTimeConverter() }
+        };
+
+        var dir = FixtureDirectory();
+        var source = Path.Combine(dir, "timestamps-export-America-Los_Angeles.json");
+        if (!File.Exists(source))
+            return;
+
+        var parsed = JsonSerializer.Deserialize<List<Activity>>(File.ReadAllText(source), options)!;
+        var zone = TimeZoneInfo.Local.Id.Replace('/', '-');
+        File.WriteAllText(
+            Path.Combine(dir, $"timestamps-crosszone-from-LA-read-in-{zone}.json"),
+            JsonSerializer.Serialize(parsed, options));
+    }
+
+    /// <summary>
     /// Records week keys where GetWeekStartDate does not round-trip: the scan finds a
     /// matching date, then walks back to that week's Monday, which lands in the previous
     /// year's bucket. Happens for the first week key of every year. These are the

@@ -22,10 +22,12 @@
 
 ## 3. Timestamp serialization
 
-- [ ] 3.1 Implement the serde serializer reproducing `DateTimeConverter.Write` and `FormatOffset`, including hour-only offsets when the minute component is zero and `Z` for zero offset
-- [ ] 3.2 Implement the deserializer reproducing the hour-only-offset regex normalization and the zero-offset-means-UTC read behavior
-- [ ] 3.3 Decide and document the Rust representation for .NET's `DateTimeKind` distinction (likely instant plus offset); record the choice in `design.md` under Decisions
-- [ ] 3.4 Assert `export.json` and every `timestamps-export-*` / `timestamps-storage-*` fixture round-trips byte-identically through serialize/deserialize under its corresponding configuration
+- [x] 3.1 Implement the serde serializer reproducing `DateTimeConverter.Write` and `FormatOffset`, including hour-only offsets when the minute component is zero and `Z` for zero offset
+- [x] 3.2 Implement the deserializer reproducing the hour-only-offset regex normalization (hand-rolled, no `regex` dependency) and the zero-offset-means-UTC read behavior
+- [x] 3.3 Represent timestamps as `TrainerTime::Utc(naive)` | `TrainerTime::Offset { naive, offset }`, retaining the parsed offset where the C# reader discards it. Deliberate, documented divergence: byte-identical for all existing data, keeps serialization pure so no ambient timezone is needed, and avoids dragging `js-sys` into `trainer-core`
+- [x] 3.4 Round-trip 727 timestamps byte-identically — 200 across 20 timestamp fixtures plus all 527 in `export.json` — with coverage assertions proving all eight offset forms were exercised (`Z`, `-08`, `-07`, `+05:30`, `+05:45`, `+08:45`, `-03:30`, `-02:30`)
+
+- [x] 3.5 Generate cross-zone fixtures pinning the offset-discard behavior, and fixtures for `America/St_Johns` and `Asia/Kathmandu` so negative-offset-with-minutes (`-03:30`, `-02:30`) and `+05:45` exercise the sign/abs interaction in `FormatOffset`
 
 ## 4. Domain models
 

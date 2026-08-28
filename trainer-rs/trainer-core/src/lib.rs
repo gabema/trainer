@@ -6,7 +6,11 @@
 /// Identifies this crate to the browser tier, which asserts the two are linked.
 pub const CRATE_NAME: &str = "trainer-core";
 
-#[cfg(feature = "test-support")]
+pub mod datetime;
+
+// Available to this crate's own tests as well as to trainer-web's, without
+// shipping in the library.
+#[cfg(any(test, feature = "test-support"))]
 pub mod fixtures;
 
 #[cfg(test)]

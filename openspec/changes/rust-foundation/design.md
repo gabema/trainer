@@ -112,7 +112,40 @@ FormatOffset(00:00)   →  "Z"
 
 So `chrono` is used for calendar arithmetic only. Serialization and deserialization of timestamps go through a hand-written serde adapter that reproduces `Write`, `FormatOffset`, and the read-side regex normalization exactly.
 
-There is a second subtlety: the converter branches on `DateTime.Kind`, emitting `Z` for `Utc` and a local offset otherwise, and on read returns `UtcDateTime` when the parsed offset is zero and local `DateTime` otherwise. Rust has no equivalent of an "unspecified kind" timestamp. The port must model this explicitly — most likely by storing the offset alongside the instant — and the fixture harness is what proves the modeling is right.
+### Timestamp representation: retain the offset, unlike the C# reader
+
+This resolves task 3.3. `DateTimeConverter` branches on `DateTime.Kind`, and the C# reader returns `dto.UtcDateTime` when the parsed offset is zero and `dto.DateTime` otherwise. That second branch **discards the offset**, yielding a wall clock with kind `Unspecified`; a later write then re-derives an offset from whatever `TimeZoneInfo.Local` says at that moment.
+
+The consequence was measured rather than assumed. Reading the Los Angeles fixture under `TZ=Asia/Kolkata` and re-serializing gives:
+
+```
+written in LA            re-saved in Kolkata        re-saved in UTC
+2026-01-01T08:56:44-08   2026-01-01T08:56:44+05:30  2026-01-01T08:56:44Z
+2026-07-04T12:30:15-07   2026-07-04T12:30:15+05:30  2026-07-04T12:30:15Z
+2026-06-15T10:00:00Z     2026-06-15T10:00:00Z       2026-06-15T10:00:00Z
+```
+
+The wall clock survives; the instant moves by 13.5 hours. Only `Z` values are stable, because a zero offset reads back as kind `Utc`. In the shipping app this means a user who travels and re-saves an activity silently re-anchors it to their new timezone. Recorded in `timestamps-crosszone-*`.
+
+**Decision: keep the offset.** The Rust type mirrors the two states observable on the wire rather than .NET's three kinds:
+
+```rust
+enum TrainerTime {
+    Utc(NaiveDateTime),                                    // -> "…Z"
+    Offset { naive: NaiveDateTime, offset: FixedOffset },  // -> "…-08", "…+05:30"
+}
+```
+
+This is a **deliberate divergence** from the bug-for-bug rule, taken because:
+
+- It is byte-identical for every value the C# implementation ever wrote, so no stored data changes and nothing is orphaned.
+- It diverges only in the travel case, where the C# behavior is itself the defect.
+- Nothing user-visible changes: the app displays the wall clock and `WeekHelper` buckets on the wall clock, and both are preserved either way. The divergence is confined to which offset string is emitted on re-serialization.
+- It makes serialization **pure**. Reproducing the C# behavior would require reading the ambient timezone during serialization, which would drag `js-sys` into `trainer-core` and break the crate split — or force an injected timezone provider threaded through every call. Retaining the offset means all six timezone fixtures are asserted natively, with no `TZ` manipulation in the test suite.
+
+Resolving an offset for a *new* timestamp still needs the ambient zone, but that happens at construction in `trainer-web`, not during serialization.
+
+A null or empty `when` maps to `default(DateTime)` (`0001-01-01T00:00:00`) as the C# reader does. That path is unreachable for real data, since `Activity.When` is non-nullable and the writer always emits a value.
 
 **Confirmed against real data.** All 527 timestamps in the real export use hour-only offsets (`-08` and `-07`), never `-08:00`. Because that export is Pacific-only, the remaining branches were captured by driving the real `DateTimeConverter` under other `TZ` values, which .NET honors on Unix: `Asia/Kolkata` for `+05:30`, `Australia/Eucla` for the 45-minute `+08:45`, and `UTC` for `Z`. Note that under a zero-offset zone even `DateTimeKind.Local` values emit `Z`, since `FormatOffset(TimeSpan.Zero)` returns `"Z"` before the local branch can apply.
 
