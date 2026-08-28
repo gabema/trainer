@@ -13,10 +13,12 @@
 
 ## 2. Crate scaffolding
 
-- [ ] 2.1 Create `trainer-rs/` crate targeting `wasm32-unknown-unknown` with `serde`, `serde_json`, `chrono`, `async-trait`
-- [ ] 2.2 Add browser-facing dependencies gated to `wasm32`: `wasm-bindgen`, `js-sys`, `web-sys` (IndexedDB features only), `wasm-bindgen-futures`, `wasm-bindgen-test`
-- [ ] 2.3 Verify `cargo test` runs natively and `wasm-bindgen-test` runs in headless Chrome with a placeholder test in each tier
-- [ ] 2.4 Add `trainer-rs/target` and build artifacts to `.gitignore`
+- [x] 2.1 Create the `trainer-rs/` workspace with `serde`, `serde_json`, `chrono`, `async-trait`, split into `trainer-core` (pure, native tests) and `trainer-web` (browser). The split makes the native/browser boundary a compile error rather than a review discipline
+- [x] 2.2 Add browser-facing dependencies to `trainer-web`, gated to `wasm32`: `wasm-bindgen` 0.2.127, `js-sys`, `web-sys` (IndexedDB features only), `wasm-bindgen-futures`, `wasm-bindgen-test`
+- [x] 2.3a Native tier verified: `cargo test -p trainer-core` green, with tests asserting the committed fixtures are readable and record the expected week-key, bucket, and value-representation facts
+- [x] 2.3b Browser tier compiles to wasm32 and `.cargo/config.toml` routes it through `wasm-bindgen-test-runner`, pinned to matching CLI 0.2.127
+- [x] 2.3c Browser tier executes in headless Chrome — ChromeDriver 152.0.7977.64 against Chrome 152.0.7977.64, 2 tests green. Homebrew's driver needed its macOS Gatekeeper quarantine attribute cleared before it would launch (it was SIGKILLed, exit 137); this affects local runs only, since GitHub's Ubuntu runners have no Gatekeeper
+- [x] 2.4 Add `trainer-rs/target/` and `**/*.rs.bk` to `.gitignore`. `Cargo.lock` is deliberately committed — this builds a deployed application, not a library
 
 ## 3. Timestamp serialization
 
@@ -85,6 +87,6 @@
 - [ ] 10.1 Add Rust toolchain, `wasm32-unknown-unknown` target, and `Swatinem/rust-cache` to `test.yml`
 - [ ] 10.2 Add `cargo test` for the native tier
 - [ ] 10.3 Add headless Chrome setup and the `wasm-bindgen-test` tier, with `wasm-bindgen-cli` pinned to the `wasm-bindgen` crate version
-- [ ] 10.4 Add `cargo fmt --check` and `cargo clippy -- -D warnings`, matching the strictness of the existing `CodeAnalysisTreatWarningsAsErrors` setting
+- [ ] 10.4 Add `cargo fmt --check` and `cargo clippy --all-targets -- -D warnings` for BOTH the host and `wasm32-unknown-unknown` targets — the wasm-gated test module is invisible to a host-only clippy run. Matches the strictness of the existing `CodeAnalysisTreatWarningsAsErrors` setting; both are clean as of section 2
 - [ ] 10.5 Confirm the existing .NET build and test steps still run and pass alongside the Rust steps
 - [ ] 10.6 Confirm `deploy.yml` is unmodified and the Blazor app still publishes

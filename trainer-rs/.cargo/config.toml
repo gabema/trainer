@@ -1,0 +1,10 @@
+# Routes `cargo test --target wasm32-unknown-unknown` through the wasm-bindgen
+# test harness, which drives a headless browser via a WebDriver.
+#
+# wasm-bindgen-test-runner must match the wasm-bindgen crate version exactly
+# (currently 0.2.127); a mismatch fails at runtime with an unhelpful message:
+#   cargo install wasm-bindgen-cli --version 0.2.127 --locked
+#
+# Driver selection is by environment variable, e.g. CHROMEDRIVER=/path/to/chromedriver.
+[target.wasm32-unknown-unknown]
+runner = "wasm-bindgen-test-runner"

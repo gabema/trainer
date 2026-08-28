@@ -485,3 +485,9 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Rust / Cargo
+# Cargo.lock IS committed: trainer-rs builds a deployed application, not a
+# library, so reproducible dependency resolution is wanted.
+trainer-rs/target/
+**/*.rs.bk

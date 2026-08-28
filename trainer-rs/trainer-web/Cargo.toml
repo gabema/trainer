@@ -1,0 +1,47 @@
+[package]
+name = "trainer-web"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# Browser-facing layer: the IndexedDB Storage implementation in this change, and
+# the Dioxus views in rust-ui. Everything here needs a browser, so its tests run
+# under wasm-bindgen-test rather than `cargo test`.
+[dependencies]
+trainer-core = { path = "../trainer-core" }
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+async-trait.workspace = true
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+
+# Feature-gated: web-sys ships bindings only for what is enabled here, so this
+# list grows deliberately. IndexedDB only for rust-foundation; rust-ui adds
+# Geolocation, Notification, ServiceWorkerRegistration, and IntersectionObserver.
+[target.'cfg(target_arch = "wasm32")'.dependencies.web-sys]
+version = "0.3"
+features = [
+  "Window",
+  "Storage",
+  "IdbFactory",
+  "IdbDatabase",
+  "IdbObjectStore",
+  "IdbOpenDbRequest",
+  "IdbRequest",
+  "IdbTransaction",
+  "IdbTransactionMode",
+  "IdbVersionChangeEvent",
+  "DomStringList",
+  "Event",
+  "EventTarget",
+]
+
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen-test = "0.3"
+
+[dev-dependencies]
+trainer-core = { path = "../trainer-core", features = ["test-support"] }
