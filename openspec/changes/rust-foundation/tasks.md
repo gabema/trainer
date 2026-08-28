@@ -1,10 +1,15 @@
 ## 1. Golden fixtures (before any implementation)
 
-- [ ] 1.1 Add a temporary C# console/test harness that dumps `(date, weekKey)` pairs from `WeekHelper.GetWeekKey` for every day across a 20-year span covering multiple year boundaries; commit the output as `trainer-rs/tests/fixtures/week-keys.csv`
-- [ ] 1.2 Curate a data export from a running Blazor instance covering: activities near year boundaries, fractional amounts, private activity types, durations, known locations, empty notes, null notes, and an in-progress activity; commit as `trainer-rs/tests/fixtures/export.json`
-- [ ] 1.3 Capture a second export from a profile in a non-UTC timezone, including at least one timestamp with a non-zero-minute UTC offset to exercise the `+05:30` formatting path; commit as `trainer-rs/tests/fixtures/export-offset.json`
-- [ ] 1.4 Dump the raw IndexedDB contents of a real profile (keys plus values) as `trainer-rs/tests/fixtures/idb-snapshot.json` to pin the on-disk representation independently of the export format
-- [ ] 1.5 Remove the temporary C# dump harness once fixtures are committed
+- [x] 1.1 Add a temporary C# console/test harness that dumps `(date, weekKey)` pairs from `WeekHelper.GetWeekKey` for every day across a 20-year span covering multiple year boundaries; commit the output as `trainer-rs/tests/fixtures/week-keys.csv`
+- [x] 1.1a Dump `GetWeekStartDate` / `GetWeekEndDate` golden values as `week-boundaries.csv` — needed by tasks 5.3 and 5.4, which run after the harness is deleted at 1.5
+- [x] 1.1b Dump the year-boundary round-trip failures as `week-key-anomalies.csv` so the defect is pinned rather than rediscovered during the port
+- [x] 1.2 De-identify a real export into `trainer-rs/tests/fixtures/export.json` via `deidentify.py`, preserving every structural property (527 activities, 8 field-presence combinations, both hour-only offsets, netBenefit 0/1/2, decimalPlaces 0/2, both `isPrivate` values, signed knownLocation ids, the `2026.01` boundary bucket) while replacing names, units, note text, and coordinates. Real personal data is not committed
+- [x] 1.3 Generate timestamp fixtures by driving the real `DateTimeConverter` under different `TZ` values, covering all three offset-formatting branches: hour-only (`-08`/`-07`), non-zero-minute (`+05:30` Kolkata, `+08:45` Eucla), and zero (`Z`)
+- [x] 1.3a Capture both serializer configurations separately — `timestamps-export-*` (nulls omitted) and `timestamps-storage-*` (nulls written) — because `ExportImportService` sets `DefaultIgnoreCondition` and `IndexedDbStorageService` does not
+- [x] 1.3b Capture `timestamps-roundtrip-*` recording what each emitted string parses back to through the converter's own `Read` path
+- [x] 1.4 De-identify a raw IndexedDB dump into `trainer-rs/tests/fixtures/idb-snapshot.json`. Confirms values are structured-cloned Arrays (33 entries), that `activityNextId` is a bare JS Number, and that storage writes every optional field explicitly as `null`
+- [ ] 1.4a Synthesize fixtures for the legacy localStorage migration and for `trainer_active_activities`. The captured profile has an **empty** localStorage, so neither the migration path (task 7.6) nor the active-activity persistence format (task 8.5) can be validated against real data
+- [ ] 1.5 Remove the temporary C# dump harness — **deferred until section 8 is complete**. Sections 3–8 may still need golden values, and the harness cannot be recreated after deletion without another capture. Originally sequenced here, which would have stranded tasks 5.3 and 5.4
 
 ## 2. Crate scaffolding
 
@@ -18,12 +23,13 @@
 - [ ] 3.1 Implement the serde serializer reproducing `DateTimeConverter.Write` and `FormatOffset`, including hour-only offsets when the minute component is zero and `Z` for zero offset
 - [ ] 3.2 Implement the deserializer reproducing the hour-only-offset regex normalization and the zero-offset-means-UTC read behavior
 - [ ] 3.3 Decide and document the Rust representation for .NET's `DateTimeKind` distinction (likely instant plus offset); record the choice in `design.md` under Decisions
-- [ ] 3.4 Assert both export fixtures round-trip byte-identically through serialize/deserialize
+- [ ] 3.4 Assert `export.json` and every `timestamps-export-*` / `timestamps-storage-*` fixture round-trips byte-identically through serialize/deserialize under its corresponding configuration
 
 ## 4. Domain models
 
-- [ ] 4.1 Port `Activity`, `ActivityType`, `KnownLocation`, `NetBenefit`, `DurationOption` with camelCase serde naming and non-indented output
-- [ ] 4.2 Port `EmptyStringAsNullConverter` behavior for fields where the C# implementation applied it
+- [ ] 4.1 Port `Activity`, `ActivityType`, `KnownLocation`, `NetBenefit`, `DurationOption` with camelCase serde naming, non-indented output, and field order matching the C# record declaration order
+- [ ] 4.1a Model `notes` so all three observed states stay distinct: `None`, `Some("")`, and `Some(text)`. In the real profile these occur 50 / 38 / 439 times; collapsing empty string to `None` would corrupt 38 activities
+- [ ] 4.2 Implement TWO serde configurations: export (skip `None`) and storage (serialize `None` as `null`). Do NOT port `EmptyStringAsNullConverter` — it is dead code, registered in no `JsonSerializerOptions` and applied via no attribute, which is why empty notes serialize as `""` rather than being nulled and omitted
 - [ ] 4.3 Assert serialized output of each model matches the corresponding fragment of the export fixture byte-for-byte
 
 ## 5. Week keys
@@ -49,7 +55,8 @@
 - [ ] 7.1 Define the `Storage` trait as `#[async_trait(?Send)]` mirroring `IStorageService`
 - [ ] 7.2 Implement portable `MemStorage` to stand in for Moq in service tests
 - [ ] 7.3 Implement the `IdbRequest → Future` adapter with `Closure` plus oneshot, confined to one module
-- [ ] 7.4 Implement `IdbStorage` against database `Trainer` v1, object store `activities`, preserving the `js_sys::JSON` parse-on-write / stringify-on-read boundary
+- [ ] 7.4 Implement `IdbStorage` against database `Trainer` v1, object store `activities`, preserving the `js_sys::JSON` parse-on-write / stringify-on-read boundary. Open **without** an explicit version so no upgrade transaction can fire. Handle scalar values: `activityNextId` is stored as a bare JS Number, not an object or array
+- [ ] 7.4a Cover all four storage key shapes seen in the real profile: `activities-{weekKey}` (Array), `activityTypes` (Array), `knownLocations` (Array), `activityNextId` (Number)
 - [ ] 7.5 Implement week-bucketed read/write, including removal of emptied buckets
 - [ ] 7.6 Implement the one-time localStorage-to-IndexedDB migration, non-fatal on failure
 - [ ] 7.7 Verify `IdbStorage` against `idb-snapshot.json` under `wasm-bindgen-test`: values read back as objects, database is not upgraded, keys match
@@ -60,7 +67,7 @@
 - [ ] 8.1 Port `ActivityService` including `RecalculateNextIdAsync` and week-range queries
 - [ ] 8.2 Port `ActivityTypeService`
 - [ ] 8.3 Port `GoalService`, covering the `neutral-benefit` spec scenarios
-- [ ] 8.4 Port `KnownLocationService` including `FindNearbyAsync` and `NextAutoNameAsync`, covering the `known-locations` spec scenarios
+- [ ] 8.4 Port `KnownLocationService` including `FindNearbyAsync` (Haversine, 100m threshold) and `NextAutoNameAsync`. Do NOT attempt to reproduce `AssignId` — it uses `HashCode.Combine`, which .NET seeds randomly per process, so its output is not reproducible by any implementation including itself. Preserve stored ids verbatim; generate new ones by any collision-avoiding scheme
 - [ ] 8.5 Port `ActiveActivityService` state and persistence to `trainer_active_activities`, preserving the `id` / `startTime` entry shape and silent recovery from corrupt state; model the change/tick notifications as signals rather than events
 - [ ] 8.6 Port `ExportImportService`, preserving the export file format
 - [ ] 8.7 Port `WeekFillLoader`

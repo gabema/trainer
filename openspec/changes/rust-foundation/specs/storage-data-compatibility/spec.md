@@ -26,6 +26,21 @@ Values SHALL be stored in the `activities` object store of the `Trainer` databas
 - **WHEN** the Rust implementation opens storage
 - **THEN** it opens database `Trainer` at version 1 and uses the `activities` object store, without triggering an upgrade on an existing profile
 
+#### Scenario: Scalar values are stored as scalars
+- **WHEN** the next activity id is written to storage
+- **THEN** the stored value is a JavaScript number, not an object, array, or string
+
+### Requirement: Notes preserve three distinct states
+The `notes` field SHALL distinguish absent, empty, and populated as three separate states. An empty string SHALL NOT be treated as absent. In storage all three are written explicitly; in exports the absent state is omitted while the empty state is written as `""`.
+
+#### Scenario: Absent notes round-trip as absent
+- **WHEN** an activity whose notes are absent is written and read back
+- **THEN** its notes remain absent, serializing as `null` in storage and being omitted from exports
+
+#### Scenario: Empty notes round-trip as empty
+- **WHEN** an activity whose notes are an empty string is written and read back
+- **THEN** its notes remain an empty string in both storage and exports, and are not converted to the absent state
+
 ### Requirement: Week bucket key format is preserved
 Activities SHALL continue to be bucketed by week under keys of the form `activities-{weekKey}`, with the week key computed identically to the existing `WeekHelper`. Buckets that become empty SHALL be removed rather than left as empty arrays.
 
@@ -38,7 +53,9 @@ Activities SHALL continue to be bucketed by week under keys of the form `activit
 - **THEN** the corresponding `activities-{weekKey}` entry is removed from the object store
 
 ### Requirement: Serialized JSON matches the previous serializer
-Model serialization SHALL produce JSON byte-identical to `System.Text.Json` as configured in the C# implementation: camelCase property names, no indentation, and timestamps formatted by the equivalent of the custom `DateTimeConverter`. Empty strings SHALL be treated as null where the C# implementation did so.
+Model serialization SHALL produce JSON byte-identical to `System.Text.Json` as configured in the C# implementation: camelCase property names, no indentation, field order matching the C# record declaration order, and timestamps formatted by the equivalent of the custom `DateTimeConverter`.
+
+Empty strings SHALL be serialized as `""`. The `EmptyStringAsNullConverter` present in the C# source is dead code — registered in no `JsonSerializerOptions` and applied via no attribute — and SHALL NOT be reproduced.
 
 #### Scenario: Fixture round-trips byte-identically
 - **WHEN** the committed export fixture is deserialized into Rust models and re-serialized
@@ -48,9 +65,24 @@ Model serialization SHALL produce JSON byte-identical to `System.Text.Json` as c
 - **WHEN** an activity timestamp is serialized by the Rust implementation
 - **THEN** the emitted string matches what the C# `DateTimeConverter` emitted for the same instant, including its local/UTC treatment
 
-#### Scenario: Optional fields are omitted or nulled as before
-- **WHEN** an activity with no notes, no duration, and no known location is serialized
-- **THEN** those fields appear exactly as the C# implementation emitted them
+#### Scenario: Empty notes serialize as an empty string
+- **WHEN** an activity whose notes are an empty string is serialized
+- **THEN** the emitted JSON contains `"notes":""`, neither omitting the field nor writing null
+
+### Requirement: Export and storage use distinct serializer configurations
+The implementation SHALL maintain two serializer configurations, because the C# implementation does. `ExportImportService` sets `DefaultIgnoreCondition = WhenWritingNull`, so unset optional fields are omitted from exports. `IndexedDbStorageService` sets no ignore condition, so unset optional fields are written as explicit `null` in storage. Neither configuration SHALL be used in place of the other.
+
+#### Scenario: Export omits unset optional fields
+- **WHEN** an activity with no duration is serialized for export
+- **THEN** the `durationSeconds` field is absent from the output
+
+#### Scenario: Storage writes unset optional fields as null
+- **WHEN** an activity with no duration is serialized for storage
+- **THEN** the output contains `"durationSeconds":null`
+
+#### Scenario: Every offset-formatting branch is preserved
+- **WHEN** timestamps are serialized under a zone with a whole-hour offset, a zone with a non-zero-minute offset, and UTC
+- **THEN** the emitted strings use hour-only form for whole-hour offsets, `±hh:mm` for non-zero-minute offsets, and `Z` for zero offset, matching the committed timestamp fixtures
 
 ### Requirement: Legacy localStorage data is still migrated
 The Rust implementation SHALL retain the one-time migration that moves `activities` and `activityTypes` from localStorage into IndexedDB, for users whose last use of the app predates the IndexedDB migration. Migration SHALL bucket activities by week, SHALL remove the localStorage entries only after a successful write, and SHALL NOT prevent startup if it fails.
