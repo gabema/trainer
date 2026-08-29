@@ -96,8 +96,9 @@ impl<'a, S: Storage> ActivityService<'a, S> {
         self.ensure_next_id().await?;
 
         // Descending by wall clock, as the C# orders by the DateTime value.
-        // Rust's sort is stable, as LINQ's OrderByDescending is.
-        activities.sort_by(|a, b| b.when.naive().cmp(&a.when.naive()));
+        // `sort_by_key` is a stable sort, as LINQ's OrderByDescending is, so
+        // activities sharing a timestamp keep their storage order.
+        activities.sort_by_key(|a| std::cmp::Reverse(a.when.naive()));
         Ok(activities)
     }
 
