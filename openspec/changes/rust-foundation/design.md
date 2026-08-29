@@ -243,6 +243,12 @@ The captured profile's `localStorage` is **empty** — no legacy `activities` or
 
 Note that roughly a third of `indexeddb-storage.js` is Blazor interop scar tissue (`getItems` defensively handling arrays that Blazor may have marshalled as JSON strings). That code has no Rust counterpart and is simply dropped.
 
+### Browser tests run against Chrome only
+
+Decided rather than left open: the browser tier targets headless Chrome, and no second engine is added. Locally that is `chromedriver`; in CI it is the runner's preinstalled Chrome. `safaridriver` is present on macOS but requires `safaridriver --enable` with elevated permissions, and adding a second engine to CI is cost without a mandate.
+
+*Accepted risk.* The readme advertises the app as installable on iOS, where WebKit is the only engine available, and IndexedDB behavior does differ subtly between engines — transaction auto-commit timing and error surfaces most of all. Chrome-only testing means a WebKit-specific storage defect would reach iOS users uncaught. Worth revisiting only if such a defect is actually reported; it is not worth pre-emptive CI complexity.
+
 ### Test tiers split by what needs a browser
 
 | Tier | Runner | Covers |
@@ -282,7 +288,8 @@ The user-facing migration — service worker cutover for installed PWAs — belo
 - *Single crate or split?* Split — see Decisions.
 - *Does stored data predate the current `DateTimeConverter`?* All 527 activities in the captured profile use the current format, so this is low risk. Not proof for every profile, but no longer a live concern.
 
+- *Should the browser tier run against a second engine?* No. Headless Chrome only — see Decisions.
+
 **Still open**
 
 - The migration and active-activity paths have no real-data coverage (empty `localStorage` in the capture), so their fixtures are synthetic and their confidence is lower than everything else.
-- Should the browser tier run against a second engine? The port currently targets headless Chrome only; IndexedDB behavior differs subtly across engines, and the app is explicitly installable on iOS where Safari is the only option.

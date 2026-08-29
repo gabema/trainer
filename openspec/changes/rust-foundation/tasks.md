@@ -95,7 +95,7 @@
 
 - [ ] 10.1 Add Rust toolchain, `wasm32-unknown-unknown` target, and `Swatinem/rust-cache` to `test.yml`
 - [ ] 10.2 Add `cargo test` for the native tier
-- [ ] 10.3 Add headless Chrome setup and the `wasm-bindgen-test` tier, with `wasm-bindgen-cli` pinned to the `wasm-bindgen` crate version
+- [ ] 10.3 Add headless Chrome setup and the `wasm-bindgen-test` tier, with `wasm-bindgen-cli` pinned to the `wasm-bindgen` crate version. Chrome only — no second engine, decided deliberately
 - [ ] 10.4 Add `cargo fmt --check` and `cargo clippy --all-targets -- -D warnings` for BOTH the host and `wasm32-unknown-unknown` targets — the wasm-gated test module is invisible to a host-only clippy run. Matches the strictness of the existing `CodeAnalysisTreatWarningsAsErrors` setting; both are clean as of section 2
 - [ ] 10.5 Confirm the existing .NET build and test steps still run and pass alongside the Rust steps
 - [ ] 10.6 Confirm `deploy.yml` is unmodified and the Blazor app still publishes
