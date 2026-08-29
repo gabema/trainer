@@ -10,8 +10,21 @@ jobs:
   # The shipping app. Unchanged by the Rust port, and still the thing that
   # deploys, so it keeps its own job and gates merges exactly as before.
   dotnet:
-    name: .NET
+    name: .NET (TZ=${{ matrix.tz }})
     runs-on: ubuntu-latest
+
+    # The C# DateTimeConverter recomputes each timestamp's offset from
+    # TimeZoneInfo.Local on write, so its output is machine-dependent. Running
+    # only in the runner's UTC hides every bug that needs a non-zero offset —
+    # including that a positive offset is escaped as \u002B rather than "+".
+    # Kolkata covers a positive offset with a non-zero minute component.
+    strategy:
+      fail-fast: false
+      matrix:
+        tz: [ UTC, Asia/Kolkata ]
+
+    env:
+      TZ: ${{ matrix.tz }}
 
     steps:
     - uses: actions/checkout@v4

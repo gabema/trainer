@@ -86,21 +86,64 @@ public class RustInteropTests
     }
 
     [Fact]
-    public async Task RustAndCSharpExports_AgreeOnTheSameData()
+    public async Task RustAndCSharpExports_AgreeOnEverythingExceptTheRecomputedOffset()
     {
-        // Importing the C#-produced fixture and re-exporting must yield exactly
-        // the committed C# bytes, which is the same assertion the Rust suite
-        // makes from the other side.
+        // Importing the C#-produced fixture and re-exporting yields the same
+        // bytes EXCEPT for each timestamp's UTC offset, which is why this
+        // compares with offsets normalized away.
+        //
+        // DateTimeConverter.Read returns dto.DateTime for a non-zero offset,
+        // discarding the parsed offset and leaving Kind Unspecified. Write then
+        // recomputes it from TimeZoneInfo.Local. So a fixture generated in
+        // Pacific re-exports as "-08" on a Pacific machine and as "Z" on a UTC
+        // CI runner: the wall clock survives, the instant silently moves.
+        //
+        // Recorded in trainer-rs/tests/fixtures/timestamps-crosszone-*.json.
+        // The Rust port does not share this behavior — it retains the parsed
+        // offset — which is why the equivalent Rust test can compare raw bytes.
         var (service, _, _, _) = Build();
         var csharpExport = File.ReadAllText(InMemoryJsRuntime.FixturePath("csharp-export.json"));
 
         await service.ImportDataAsync(csharpExport);
         var reExported = await service.ExportDataAsync();
 
-        // ExportDate is stamped at export time, so compare everything else.
-        static string WithoutExportDate(string json) =>
-            System.Text.RegularExpressions.Regex.Replace(json, "\"exportDate\":\"[^\"]*\"", "\"exportDate\":\"\"");
+        Assert.Equal(Normalize(csharpExport), Normalize(reExported));
+    }
 
-        Assert.Equal(WithoutExportDate(csharpExport), WithoutExportDate(reExported));
+    [Fact]
+    public async Task ImportDataAsync_PreservesWallClockEvenWhenTheOffsetIsRecomputed()
+    {
+        // The portable half of the behavior above: whatever the machine
+        // timezone, the wall clock a user sees must not move.
+        var (service, activityService, _, _) = Build();
+        await service.ImportDataAsync(
+            File.ReadAllText(InMemoryJsRuntime.FixturePath("csharp-export.json")));
+
+        var activities = await activityService.GetAllAsync();
+        var earliest = activities.MinBy(a => a.When);
+
+        Assert.NotNull(earliest);
+        Assert.Equal(new DateTime(2025, 12, 30, 8, 0, 0), earliest!.When);
+    }
+
+    /// <summary>
+    /// Strips the UTC offset from every timestamp, and blanks exportDate, which
+    /// is stamped at export time.
+    ///
+    /// The offset appears in three forms and all must be handled: "Z", the
+    /// hour-only negative form "-08", and a positive offset — which arrives as
+    /// "\u002B05:30" rather than "+05:30", because JavaScriptEncoder.Default
+    /// escapes "+". Missing that last case makes this test pass in Pacific and
+    /// UTC while failing in every zone east of Greenwich.
+    /// </summary>
+    private static string Normalize(string json)
+    {
+        var withoutExportDate = System.Text.RegularExpressions.Regex.Replace(
+            json, @"""exportDate"":""[^""]*""", @"""exportDate"":""""");
+
+        return System.Text.RegularExpressions.Regex.Replace(
+            withoutExportDate,
+            @"(""when"":""\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(Z|\\u002B\d{2}(:\d{2})?|-\d{2}(:\d{2})?)""",
+            @"$1""");
     }
 }
