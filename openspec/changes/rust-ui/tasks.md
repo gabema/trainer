@@ -1,7 +1,7 @@
 ## 1. Framework scaffolding
 
-- [ ] 1.1 Add `dioxus` and `dioxus-router` to `trainer-rs`, configured for client-side rendering only
-- [ ] 1.2 Add `web-sys` features for `Geolocation`, `Notification`, `ServiceWorkerRegistration`, and `IntersectionObserver`
+- [x] 1.1 Add `dioxus` 0.7.10 to `trainer-web` with the `web` and `router` features only — no `fullstack`, `server`, `ssr`, `desktop` or `mobile`, since the app is a static bundle with no server. Pinned to stable rather than the 0.8 alpha. Kept under the existing `wasm32` target gate so `trainer-core`'s native tier is untouched
+- [x] 1.2 Add `web-sys` features for geolocation, notifications, the intersection observer, and document access. `GetNotificationOptions` is **not** a valid feature in web-sys 0.3.104 — see task 3.4
 - [ ] 1.3 Configure the Dioxus CLI with base-path support and confirm a release build produces a working `/trainer/`-rooted bundle locally
 - [ ] 1.4 Port `index.html`: drop the Chart.js CDN tag, the Blazor script, and the Blazor error UI; keep the manifest, stylesheets, and service worker registration
 - [ ] 1.5 Reduce `theme.js` to a minimal inline `<head>` script — read `prefers-color-scheme`, set `data-bs-theme`, listen for changes; delete `window.themeManager`, the `themechange` event, and the `chartHelper` call
@@ -20,7 +20,7 @@
 - [ ] 3.1 Convert `ActiveActivityService`'s `OnChanged`, `OnTick`, and `OnSlowTick` events to signals, retaining the 1s and 30s timers
 - [ ] 3.2 Confirm no component needs explicit subscribe, unsubscribe, or manual redraw
 - [ ] 3.3 Port `ActiveActivities`, covering the `active-activities` spec scenarios
-- [ ] 3.4 Port `ActiveActivityNotification` against `web_sys::Notification` and `ServiceWorkerRegistration::show_notification_with_options`, preserving the `active-{id}` tag, the silent and non-renotifying options, and the base-path-aware icon URL
+- [ ] 3.4 Port `ActiveActivityNotification` against `web_sys::Notification` and `ServiceWorkerRegistration::show_notification_with_options`, preserving the `active-{id}` tag, the silent and non-renotifying options, and the base-path-aware icon URL. Note: web-sys 0.3.104 binds `get_notifications()` with **no filter argument**, so the shim's `getNotifications({tag})` becomes an unfiltered call plus a `Notification::tag()` comparison in Rust — behaviorally equivalent, and it keeps everything on typed bindings
 - [ ] 3.5 Implement notification permission request and the silent no-op when permission is absent
 - [ ] 3.6 Delete `notification-helper.js`
 
