@@ -475,6 +475,54 @@ public class GoldenFixtureGenerator
     }
 
     /// <summary>
+    /// Task 9.1. Produces a genuine export by driving the real
+    /// ExportImportService over the real IndexedDbStorageService, backed by an
+    /// in-memory JS runtime. The committed export.json is de-identified through
+    /// Python, so this is the only fixture whose bytes come start-to-finish from
+    /// the C# export path.
+    /// </summary>
+    [Fact]
+    public void GenerateCSharpExportFixture()
+    {
+        if (!GenerationRequested)
+            return;
+
+        var backing = new Dictionary<string, string>(StringComparer.Ordinal);
+        var js = InMemoryJsRuntime.Create(backing);
+
+        using var storage = new IndexedDbStorageService(js);
+        var activityService = new ActivityService(storage);
+        var knownLocationService = new KnownLocationService(storage);
+        var exportImport = new ExportImportService(storage, activityService, knownLocationService);
+
+        // Seeded through the real services, so ids and bucketing are whatever
+        // the shipping code produces.
+        var types = new List<ActivityType>
+        {
+            new() { Id = 1, Name = "Water", NetBenefit = NetBenefit.Positive, DailyAmount = 64, Unit = "oz" },
+            new() { Id = 2, Name = "Run's ½", NetBenefit = NetBenefit.Positive, WeeklyAmount = 20, Unit = "mi", DecimalPlaces = 2, IsPrivate = true },
+        };
+        storage.SetItemAsync("activityTypes", types).GetAwaiter().GetResult();
+
+        knownLocationService.SaveAsync(new KnownLocation { Id = 0, Name = "Gym + Pool", Latitude = 10.0, Longitude = -20.5 })
+            .GetAwaiter().GetResult();
+
+        foreach (var activity in new[]
+        {
+            new Activity { ActivityTypeId = 1, When = new DateTime(2025, 12, 30, 8, 0, 0, DateTimeKind.Local), Amount = 16, Notes = "before new year" },
+            new Activity { ActivityTypeId = 1, When = new DateTime(2026, 1, 2, 9, 30, 0, DateTimeKind.Local), Amount = 20 },
+            new Activity { ActivityTypeId = 2, When = new DateTime(2026, 1, 3, 18, 0, 0, DateTimeKind.Local), Amount = 125, Notes = "", DurationSeconds = 1800 },
+            new Activity { ActivityTypeId = 2, When = new DateTime(2026, 2, 10, 7, 15, 0, DateTimeKind.Utc), Amount = 3, Notes = "café & more" },
+        })
+        {
+            activityService.AddAsync(activity).GetAwaiter().GetResult();
+        }
+
+        var exported = exportImport.ExportDataAsync().GetAwaiter().GetResult();
+        File.WriteAllText(Path.Combine(FixtureDirectory(), "csharp-export.json"), exported);
+    }
+
+    /// <summary>
     /// Pins CROSS-ZONE behavior: reads the Los Angeles fixture and re-serializes it under
     /// the current process timezone. DateTimeConverter.Read returns dto.DateTime (Kind
     /// Unspecified) for non-zero offsets, discarding the parsed offset, so Write then

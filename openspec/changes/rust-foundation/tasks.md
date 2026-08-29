@@ -91,10 +91,10 @@
 
 ## 9. Cross-implementation compatibility
 
-- [ ] 9.1 Assert a C#-produced export imports into the Rust implementation with identical field values
-- [ ] 9.2 Assert a Rust-produced export imports into the C# implementation with identical field values
-- [ ] 9.3 Assert data written by Rust is readable by the existing JavaScript shim, and vice versa
-- [ ] 9.4 Walk all nine existing capability specs and confirm every scenario has a corresponding ported test or is explicitly deferred to `rust-ui` as view-layer behavior
+- [x] 9.1 Generate `csharp-export.json` by driving the real `ExportImportService` over the real `IndexedDbStorageService`, then assert the Rust implementation imports and re-exports it **byte-identically**. Unlike `export.json`, its bytes come start-to-finish from the C# export path
+- [x] 9.2 Commit `rust-export.json`, produced by the Rust serializer and guarded against staleness, and add `RustInteropTests` on the C# side that imports it and asserts ids, all three notes states, durations, coordinates, week bucketing, `DateTimeKind`, and escaped characters all survive
+- [x] 9.3 Load the shipping `indexeddb-storage.js` verbatim into the browser tier — with its `DB_NAME` rewritten for isolation — and assert both directions: the shim reads what Rust wrote (arrays and the bare-number scalar), Rust reads what the shim wrote, and both agree on prefix search
+- [x] 9.4 Walk all nine capability specs — 41 requirements, 134 scenarios — and record the result in `spec-coverage.md`: 20 requirements covered here, 21 deferred to `rust-ui` with an identified view-layer reason each. Nothing unaccounted for
 
 ## 10. CI
 

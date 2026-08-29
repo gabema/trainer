@@ -6,6 +6,9 @@
 /// Identifies this crate to the browser tier, which asserts the two are linked.
 pub const CRATE_NAME: &str = "trainer-core";
 
+#[cfg(test)]
+mod compat;
+
 pub mod datetime;
 pub mod escaping;
 pub mod helpers;

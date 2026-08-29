@@ -15,6 +15,9 @@ pub mod local;
 mod idb_tests;
 
 #[cfg(all(test, target_arch = "wasm32"))]
+mod shim_interop_tests;
+
+#[cfg(all(test, target_arch = "wasm32"))]
 mod tier_check {
     //! Verifies the browser test tier is wired up and can reach the APIs the
     //! storage layer depends on. Real coverage arrives with `IdbStorage` in
