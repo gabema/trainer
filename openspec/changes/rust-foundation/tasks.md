@@ -15,7 +15,8 @@
 - [x] 1.4a Synthesize fixtures for the legacy localStorage migration and for `trainer_active_activities` by driving both real C# code paths with a mocked `IJSRuntime`, since the captured profile's localStorage was empty
 - [x] 1.4b Record `active-activities.json`: the write format, the read-back with `Kind` preserved, and that the key is removed rather than emptied
 - [x] 1.4c Record `legacy-migration.json`: a legacy flat list splitting into week buckets across a year boundary, `activityTypes` written unbucketed, and both legacy keys removed
-- [ ] 1.5 Remove the temporary C# dump harness — **deferred until section 8 is complete**. Sections 3–8 may still need golden values, and the harness cannot be recreated after deletion without another capture. Originally sequenced here, which would have stranded tasks 5.3 and 5.4
+- [x] 1.5 Remove `GoldenFixtureGenerator.cs` now that sections 3–10 are complete. `InMemoryJsRuntime.cs` deliberately survives it — `RustInteropTests` still needs it, and both live until `rust-ui` deletes the C# project
+- [x] 1.5a Write `tests/fixtures/README.md` before deleting, recording what each fixture pins, why several exist at all, and the `git show` reference that recovers the generator. Provenance should not vanish with the tool
 
 ## 2. Crate scaffolding
 

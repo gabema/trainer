@@ -9,8 +9,9 @@ using Moq;
 /// An IJSRuntime backing indexedDbStorage.* and localStorage.* with a plain
 /// dictionary, so the real storage and service stack can run outside a browser.
 ///
-/// Unlike GoldenFixtureGenerator this is NOT temporary: the cross-implementation
-/// tests use it for as long as the C# project exists.
+/// This outlived the temporary golden-fixture generator removed in task 1.5:
+/// the cross-implementation tests in RustInteropTests use it for as long as the
+/// C# project exists.
 /// </summary>
 internal static class InMemoryJsRuntime
 {
