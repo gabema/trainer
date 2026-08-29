@@ -59,11 +59,41 @@ pub async fn request_permission() {
     }
 }
 
-/// The ready service worker registration, or `None` if there is none.
+/// How long to wait for a service worker before giving up on a notification.
+const REGISTRATION_TIMEOUT_MS: i32 = 2_000;
+
+/// The ready service worker registration, or `None`.
+///
+/// **Bounded deliberately.** `navigator.serviceWorker.ready` never rejects: on
+/// a page with no registered worker it simply never settles. The shim awaited
+/// it inside a `try`/`catch`, which cannot catch a promise that never resolves,
+/// so its notification calls would hang forever in that situation — harmless
+/// only because they were fire-and-forget. Racing a timeout turns that into a
+/// clean "no notification", which is what the caller already handles.
 async fn registration() -> Option<ServiceWorkerRegistration> {
     let container = web_sys::window()?.navigator().service_worker();
     let ready = container.ready().ok()?;
-    JsFuture::from(ready).await.ok()?.dyn_into().ok()
+
+    let timeout = js_sys::Promise::new(&mut |resolve, _| {
+        if let Some(window) = web_sys::window() {
+            let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
+                &resolve,
+                REGISTRATION_TIMEOUT_MS,
+            );
+        }
+    });
+
+    let race = Array::new();
+    race.push(&ready);
+    race.push(&timeout);
+
+    // The timeout resolves with undefined, which fails the downcast below and
+    // is reported as "no registration".
+    JsFuture::from(js_sys::Promise::race(&race))
+        .await
+        .ok()?
+        .dyn_into()
+        .ok()
 }
 
 /// Shows or replaces the notification for an active activity.

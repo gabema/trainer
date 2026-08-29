@@ -26,11 +26,11 @@
 
 ## 4. Browser APIs
 
-- [ ] 4.1 Implement geolocation against `web_sys::Geolocation`, preserving `enableHighAccuracy`, the 10s timeout, and the `denied` versus `unavailable` error distinction; delete `geolocation-helper.js`
-- [ ] 4.2 Implement the intersection observer against `web_sys::IntersectionObserver` with `threshold: 0.1`
-- [ ] 4.3 Preserve the issue #85 workaround: unobserve before observing so the callback re-fires when the trigger stays within the viewport, and cover it with a test
-- [ ] 4.4 Delete `infinite-scroll.js`
-- [ ] 4.5 Add `wasm-bindgen-test` coverage for geolocation, notifications, and the observer
+- [x] 4.1 Implement geolocation against `web_sys::Geolocation`, preserving `enableHighAccuracy`, the 10s timeout, `maximumAge: 0`, and the `Denied` versus `Unavailable` distinction as an enum. The shim never rejected — it resolved with an error marker — and that shape is kept
+- [x] 4.2 Implement `ScrollTrigger` against `web_sys::IntersectionObserver` with `threshold: 0.1`, viewport root and no margin. It owns its closure so the callback outlives the observer, and disconnects on drop — the shim's `dispose()`
+- [x] 4.3 Preserve the issue #85 unobserve-then-observe workaround, covered by **two** tests: one asserting re-observing re-fires, and a contrast test driving a raw observer without the unobserve to assert it does not — so the workaround is shown necessary rather than merely present
+- [x] 4.4 `infinite-scroll.js` is not carried into the Rust app; the remaining copy under `Trainer/wwwroot/js/` is still referenced by the Blazor build and goes with task 8.3, as with the other shims
+- [x] 4.5 Add browser-tier coverage for all three: the observer's fire, re-arm, missing-element and drop-disconnects paths; geolocation resolving to a classified error rather than hanging; and notifications being a silent no-op without permission
 
 ## 5. Pages
 

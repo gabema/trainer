@@ -190,6 +190,37 @@ A release built with plain `cargo build` would therefore have no base path and
 every route would resolve against the domain root. Task 7.3 must build with
 `dx`, not `cargo`.
 
+### `serviceWorker.ready` never settles without a worker
+
+Found by the notification test hanging rather than failing.
+
+`navigator.serviceWorker.ready` does not reject when no service worker is
+registered — it simply never resolves. `notification-helper.js` awaited it
+inside a `try`/`catch`, which cannot catch a promise that never settles, so on
+a page without a registered worker every notification call hangs forever. In
+the C# that was invisible: the calls were fire-and-forget, so a hung task just
+sat there and no notification appeared.
+
+The port races the wait against a two-second timeout, so the same situation
+becomes a clean "no notification" — which every caller already handles, since
+the whole path is best-effort by design. The activity timer must keep working
+whether or not notifications do.
+
+This is a fix, not a port, and it is deliberate: reproducing a hang faithfully
+would be fidelity to a defect with no upside.
+
+### The issue #85 workaround is load-bearing, and now proven so
+
+`observe()` on an already-observed element is a no-op, so when a sparse filtered
+list leaves the trigger inside the viewport, nothing new intersects and loading
+stalls. `ScrollTrigger::observe` unobserves first to force a fresh evaluation.
+
+Two tests cover it rather than one. The first asserts that re-observing
+re-fires. The second drives a **raw** `IntersectionObserver` the same way
+without the unobserve and asserts it does *not* fire again — so the workaround
+is shown to be necessary rather than merely present, and if a browser ever
+changes that behaviour the contrast test says so directly.
+
 ### Deploy workflow
 
 | Step today | After |
