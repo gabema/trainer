@@ -79,15 +79,15 @@
 
 ## 8. Services
 
-- [ ] 8.1 Port `ActivityService` including `RecalculateNextIdAsync` and week-range queries
-- [ ] 8.2 Port `ActivityTypeService`
-- [ ] 8.3 Port `GoalService`, covering the `neutral-benefit` spec scenarios
-- [ ] 8.4 Port `KnownLocationService` including `FindNearbyAsync` (Haversine, 100m threshold) and `NextAutoNameAsync`. Do NOT attempt to reproduce `AssignId` — it uses `HashCode.Combine`, which .NET seeds randomly per process, so its output is not reproducible by any implementation including itself. Preserve stored ids verbatim; generate new ones by any collision-avoiding scheme
-- [ ] 8.5 Port `ActiveActivityService` state and persistence to `trainer_active_activities`, preserving the `id` / `startTime` entry shape, removal of the key when nothing is active, and silent recovery from corrupt state; model the change/tick notifications as signals rather than events
-- [ ] 8.5a Implement the THIRD wire format this service uses. It serializes with default options and no `DateTimeConverter`, so `TrainerTime` cannot serve it: offsets are full `±hh:mm` rather than hour-only, unspecified-kind values carry no offset suffix at all (which RFC 3339 parsing rejects), and sub-second precision is emitted with trailing zeros trimmed at .NET's 100ns tick resolution. Assert against `active-activities.json`
-- [ ] 8.6 Port `ExportImportService`, preserving the export file format
-- [ ] 8.7 Port `WeekFillLoader`
-- [ ] 8.8 Port `ActivityServiceTests`, `KnownLocationServiceTests`, and `ActiveActivityServiceTests` scenario-for-scenario against `MemStorage`
+- [x] 8.1 Port `ActivityService` including the next-id counter, week-transition handling on update, and `RecalculateNextIdAsync`. Preserves the asymmetry where `update` deletes an emptied bucket but `delete` leaves it as `[]`, and where a date range returns whole buckets with no filtering
+- [x] 8.2 Port `ActivityTypeService`, keeping reads sorted by name while writes preserve storage order
+- [x] 8.3 Port `GoalService`, covering the `neutral-benefit` spec scenarios and the four-week weekly-then-daily fallback
+- [x] 8.4 Port `KnownLocationService` including `FindNearbyAsync` (Haversine, 100m) and `NextAutoNameAsync`. `AssignId` is NOT reproduced — `HashCode.Combine` is randomly seeded per process, so there is nothing stable to port; new ids use deterministic FNV-1a over the coordinates with collision increment, and stored ids are preserved verbatim
+- [x] 8.5 Port `ActiveActivityService`, verified to write a payload byte-identical to the recorded C# output. The key is removed rather than emptied, corrupt state is discarded silently, and the event/tick machinery becomes a `version()` counter since ticking is a view concern
+- [x] 8.5a Implement `ActiveTime`, the third wire format: full `±hh:mm` offsets, an offset-less form RFC 3339 rejects, and sub-second precision trimmed at .NET's 100ns tick resolution. Asserted against `active-activities.json`
+- [x] 8.6 Port `ExportImportService`, verified by importing the real 527-activity export and re-exporting it byte-identically. Accepts the legacy flat array and PascalCase names. **Diverges deliberately**: every section is deserialized before the store is cleared, because the C# clears first and so destroys all data when a structurally valid file fails to deserialize
+- [x] 8.7 Port `WeekFillLoader`, including the guarantee that the caller records the loaded key so the loop terminates
+- [x] 8.8 Port `ActivityServiceTests`, `ActivityTypeServiceTests`, `GoalServiceTests`, `KnownLocationServiceTests`, `ActiveActivityServiceTests`, `ExportImportServiceTests` and `WeekFillLoaderTests` scenario-for-scenario against `MemStorage`
 
 ## 9. Cross-implementation compatibility
 

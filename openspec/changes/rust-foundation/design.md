@@ -242,6 +242,41 @@ allocation. That is deliberate: the alternative — sharing both closures throug
 cell and dropping them from inside a handler — would drop a `Closure` while its
 own JS callback is still on the stack, which is unsound.
 
+### Import validates before clearing — a deliberate divergence
+
+`ImportDataAsync` calls `ClearAsync()` **before** deserializing each section:
+
+```csharp
+using var jsonDoc = JsonDocument.Parse(jsonData);   // invalid JSON throws here, safely
+await _storageService.ClearAsync();                 // ALL DATA DELETED
+var activities = JsonSerializer.Deserialize<List<Activity>>(...);  // can throw AFTER
+```
+
+Completely malformed JSON is safe, because `JsonDocument.Parse` throws first. But
+structurally valid JSON whose *contents* fail to deserialize — one activity with
+a non-numeric id, a truncated or hand-edited backup — clears the profile, then
+throws. The user is left with an empty app, no undo, and no server-side copy.
+This is reachable in exactly the situation where a backup matters most.
+
+The port deserializes every section up front and only then clears and writes, so
+a failed import cannot destroy anything. Covered by
+`a_malformed_import_leaves_existing_data_intact`.
+
+This goes beyond bug-for-bug fidelity on purpose. The rule exists to protect
+stored bytes; here the C# behavior *destroys* stored bytes, so preserving it
+would invert the rule's intent. Tracked separately for the C# app.
+
+### `ActiveActivityService` notifications become a version counter
+
+The C# exposes `OnChanged`, `OnTick` and `OnSlowTick` plus one- and thirty-second
+timers, and each of the three consuming components subscribes, unsubscribes and
+calls `StateHasChanged` by hand.
+
+Ticking is a view concern — it exists so elapsed time re-renders — so the timers
+belong to the component that draws the clock, and `rust-ui` replaces the
+subscription bookkeeping with signals. What the service keeps in
+`rust-foundation` is the state plus a `version()` counter a view can observe.
+
 ### `EmptyStringAsNullConverter` is dead code
 
 `Trainer/Serialization/EmptyStringAsNullConverter.cs` converts empty strings to null on write and null to empty string on read. It is referenced nowhere: not registered in either `JsonSerializerOptions`, not applied via `[JsonConverter]`. Real exports therefore contain `"notes":""` rather than omitting the field. It is not ported.
