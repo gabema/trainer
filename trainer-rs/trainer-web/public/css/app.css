@@ -711,3 +711,127 @@ code {
         font-size: 0.6rem;
     }
 }
+/* ==========================================================================
+   Component styles flattened from Blazor's scoped .razor.css files.
+   No Rust framework provides Blazor's CSS isolation, so these become global
+   and are namespaced by their component's own class instead.
+
+   `::deep` selectors are dropped, not translated: they existed only so a
+   scoped stylesheet could reach into a child component's markup. Once these
+   rules are global the plain selector already matches, so each `::deep`
+   variant collapsed into the rule above it.
+
+   NavMenu.razor.css is deliberately absent — see below.
+   ========================================================================== */
+
+/* --- MainLayout.razor.css ------------------------------------------------ */
+
+.page {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Scoped to .page: Blazor's isolation limited this to MainLayout's markup, so
+   a bare `main` selector would now reach further than it used to. */
+.page main {
+    flex: 1;
+    width: 100%;
+}
+
+/* --- TopNavBar.razor.css ------------------------------------------------- */
+
+.top-nav-bar {
+    background-color: var(--header-bg);
+    border-bottom: 1px solid var(--header-border);
+    padding: 0;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.nav-tabs-container {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    width: 100%;
+}
+
+.nav-tab {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 1rem 1.5rem;
+    color: #6c757d;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.95rem;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s ease;
+    text-align: center;
+    background-color: transparent;
+    border-right: 1px solid var(--header-border);
+    box-sizing: border-box;
+    width: 100%;
+    margin: 0 auto;
+}
+
+.nav-tab span {
+    text-align: center;
+    display: inline-block;
+    width: auto;
+    margin: 0;
+}
+
+.nav-tab svg {
+    flex-shrink: 0;
+    margin: 0;
+}
+
+.nav-tab:last-child {
+    border-right: none;
+}
+
+.nav-tab:hover {
+    color: var(--link-color);
+    background-color: rgba(0, 113, 193, 0.05);
+}
+
+.nav-tab.active,
+.nav-tab[aria-current="page"] {
+    color: var(--link-color);
+    border-bottom-color: var(--link-color);
+    background-color: rgba(0, 113, 193, 0.1);
+    font-weight: 600;
+}
+
+[data-bs-theme="dark"] .nav-tab {
+    color: #adb5bd;
+    border-right-color: var(--header-border);
+}
+
+[data-bs-theme="dark"] .nav-tab:hover {
+    color: var(--link-color);
+    background-color: rgba(93, 179, 255, 0.1);
+}
+
+[data-bs-theme="dark"] .nav-tab.active,
+[data-bs-theme="dark"] .nav-tab[aria-current="page"] {
+    color: var(--link-color);
+    border-bottom-color: var(--link-color);
+    background-color: rgba(93, 179, 255, 0.15);
+}
+
+@media (max-width: 480px) {
+    .nav-tab {
+        padding: 0.75rem 0.5rem;
+        flex-direction: column;
+        gap: 0.25rem;
+        font-size: 0.75rem;
+    }
+
+    .nav-tab svg {
+        width: 24px;
+        height: 24px;
+    }
+}

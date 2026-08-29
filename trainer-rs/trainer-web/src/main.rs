@@ -8,30 +8,16 @@
 //! on the host — which CI runs — fails to compile this binary.
 
 #[cfg(target_arch = "wasm32")]
-mod app {
+fn main() {
     use dioxus::prelude::*;
-    use trainer_web::build_info::VERSION;
+    use trainer_web::routes::Route;
 
-    pub fn launch() {
-        dioxus::launch(App);
-    }
-
-    /// The shell. Routes and pages arrive in section 2.
     #[component]
     fn App() -> Element {
-        rsx! {
-            main { class: "container py-3",
-                h1 { class: "h4", "Trainer" }
-                p { class: "text-muted", "Shell is up. Routing and pages follow." }
-                footer { class: "text-muted small text-center py-2", "{VERSION}" }
-            }
-        }
+        rsx! { Router::<Route> {} }
     }
-}
 
-#[cfg(target_arch = "wasm32")]
-fn main() {
-    app::launch();
+    dioxus::launch(App);
 }
 
 /// Building this binary for the host is not meaningful; it exists so that

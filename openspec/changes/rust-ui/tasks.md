@@ -9,11 +9,11 @@
 
 ## 2. Shell, routing, and styling
 
-- [ ] 2.1 Port `MainLayout`, `NavMenu`, and `TopNavBar`
-- [ ] 2.2 Register all nine routes, including typed integer parameters on `/activity/{id}`, `/activity-type/{id}`, and `/known-location/{id}`
-- [ ] 2.3 Flatten `TopNavBar.razor.css`, `NavMenu.razor.css`, and `MainLayout.razor.css` into `app.css` under a component-prefix convention
-- [ ] 2.4 Port `AppVersionFooter`, satisfying the `app-version-footer` spec scenarios
-- [ ] 2.5 Confirm the app builds, routes, and renders an empty shell before porting any page
+- [x] 2.1 Port `MainLayout` and `TopNavBar`. `NavMenu` is **not** ported: 112 lines nothing renders, the Blazor template's default sidebar replaced by the tab bar and never deleted. `TopNavBar`'s `LocationChanged` subscription, `StateHasChanged` call and `IDisposable` are replaced by `Link`'s `active_class`
+- [x] 2.2 Register all nine routes plus a NotFound catch-all. Verified in a browser: `/activity/5` renders with `id = 5`, and `/activity/abc` falls through to NotFound, matching Blazor's `{Id:int}` constraint
+- [x] 2.3 Flatten `TopNavBar.razor.css` and `MainLayout.razor.css` into `app.css` — 145 live lines, not the 228 this task assumed, since 83 belonged to dead `NavMenu`. All 25 `!important` declarations and every `::deep` duplicate were dropped rather than translated: both were Blazor CSS-isolation artifacts. `main` is scoped to `.page main` so it does not reach further than Blazor's scoping allowed
+- [x] 2.4 Port `AppVersionFooter` and place it on Home, Activities and Calendar — the three pages the spec names — rather than in `MainLayout`, which would also put it on the entry pages
+- [x] 2.5 Verified in a browser: the shell renders, direct URLs and click navigation both work, the active tab updates without a reload, and the footer appears on the three pages the spec names
 
 ## 3. Reactive state
 
@@ -61,7 +61,7 @@
 
 - [ ] 7.1 Remove the .NET setup, build, and test steps from `test.yml`
 - [ ] 7.2 Add the browser test tier coverage added in this change to `test.yml`
-- [ ] 7.3 Rewrite `deploy.yml`: Rust toolchain, wasm target, Dioxus CLI, `rust-cache`, `dx build --release`
+- [ ] 7.3 Rewrite `deploy.yml`: Rust toolchain, wasm target, Dioxus CLI, `rust-cache`, `dx build --release`. It **must** be `dx build`, not `cargo build`: in release the router reads its base path from `DIOXUS_ASSET_ROOT`, a compile-time variable only the CLI sets, so a cargo-built release would resolve every route against the domain root
 - [ ] 7.4 Set `TRAINER_VERSION` from the release tag, stripping the leading `v`
 - [ ] 7.5 Remove the `sed` steps that rewrite `<base href>` in `index.html` and `404.html`. They go because the app now ships a static `<base href="/trainer/">` that is correct in dev too, **not** because Dioxus emits one — it does not
 - [ ] 7.6 Retain the `404.html` copy and confirm the manifest `start_url` is `/trainer/`

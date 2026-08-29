@@ -137,6 +137,59 @@ this rewrite, the emitted bundle is correct, and the failure is a local
 binaryen/DWARF incompatibility rather than anything this change introduced.
 Whether it also occurs on the Linux CI runner is checked at task 7.7.
 
+### `NavMenu` is dead code and is not ported
+
+`MainLayout` renders `TopNavBar`. `NavMenu` appears nowhere else in the C#
+source — not in a `.razor`, not in a `.cs`. It is the Blazor project template's
+default sidebar nav, replaced by the tab bar and never deleted.
+
+That is 112 lines nothing renders: `NavMenu.razor` (29) plus
+`NavMenu.razor.css` (83). Porting it would mean translating markup no user has
+ever seen. Task 2.1 named it; task 2.3 counted its stylesheet in the 228 lines
+to flatten. The real figure is 145 lines across two files.
+
+The third piece of dead code this rewrite has surfaced, after
+`EmptyStringAsNullConverter` and the absent `WeekHelperTests`.
+
+### Flattening dropped every `!important`
+
+The scoped stylesheets carried 25 `!important` declarations and a set of
+`::deep` selector duplicates. Both were artifacts of Blazor's CSS isolation:
+`::deep` let a scoped sheet reach into a child component's markup, and the
+`!important` flags won the specificity fights that scoping created — `NavLink`
+rendered the anchor, so `.nav-tab` and `::deep a.nav-tab` competed.
+
+Once the rules are global, the plain selector already matches and nothing
+competes. All 25 `!important` declarations and every `::deep` duplicate were
+removed rather than translated.
+
+Verified in a browser rather than assumed: the tab bar renders as a
+three-column grid with flex tabs, and the active tab resolves to weight 600,
+the dark-mode background and the link-coloured underline, matching the Blazor
+design exactly with no `!important` anywhere.
+
+### The router replaces the active-tab machinery
+
+`TopNavBar.razor` computed the active tab by hand — reading
+`NavigationManager.Uri`, stripping the base URI, comparing prefixes — then
+subscribed to `LocationChanged`, called `StateHasChanged`, and implemented
+`IDisposable` purely to re-render on navigation.
+
+`Link`'s `active_class` does all of it declaratively. The subscription, the
+manual redraw and the disposal are gone, and the active class was observed
+updating on a click without a reload.
+
+### The release build must go through `dx`
+
+`dioxus-router` resolves the base path differently per profile: in debug it
+reads the `<meta>` element the CLI injects, and in release it reads
+`option_env!("DIOXUS_ASSET_ROOT")` — a **compile-time** variable the CLI sets
+during `dx build`.
+
+A release built with plain `cargo build` would therefore have no base path and
+every route would resolve against the domain root. Task 7.3 must build with
+`dx`, not `cargo`.
+
 ### Deploy workflow
 
 | Step today | After |
