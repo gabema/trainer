@@ -7,23 +7,123 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
+  # The shipping app. Unchanged by the Rust port, and still the thing that
+  # deploys, so it keeps its own job and gates merges exactly as before.
+  dotnet:
+    name: .NET (TZ=${{ matrix.tz }})
     runs-on: ubuntu-latest
-    
+
+    # The C# DateTimeConverter recomputes each timestamp's offset from
+    # TimeZoneInfo.Local on write, so its output is machine-dependent. Running
+    # only in the runner's UTC hides every bug that needs a non-zero offset —
+    # including that a positive offset is escaped as \u002B rather than "+".
+    # Kolkata covers a positive offset with a non-zero minute component.
+    strategy:
+      fail-fast: false
+      matrix:
+        tz: [ UTC, Asia/Kolkata ]
+
+    env:
+      TZ: ${{ matrix.tz }}
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: '10.0.x'
-    
+
     - name: Restore dependencies
       run: dotnet restore
-    
+
     - name: Build
       run: dotnet build --no-restore
-    
+
+    # Includes RustInteropTests, which imports the committed Rust-produced
+    # export, so this job also guards the Rust-to-C# direction.
     - name: Test
       run: dotnet test --no-build --verbosity normal
 
+  rust:
+    name: Rust
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: trainer-rs
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: wasm32-unknown-unknown
+        components: rustfmt, clippy
+
+    # Cold Rust builds are minutes where `dotnet restore` is seconds. Also
+    # caches ~/.cargo/bin, so the wasm-bindgen-cli install below is paid once.
+    - name: Cache cargo
+      uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: trainer-rs
+
+    - name: Formatting
+      run: cargo fmt --check
+
+    # Clippy must run against BOTH targets: trainer-web's browser code and its
+    # entire test module are cfg'd to wasm32 and are invisible to a host-only
+    # run, which would leave about half the crate unlinted.
+    - name: Lint (host)
+      run: cargo clippy --all-targets -- -D warnings
+
+    - name: Lint (wasm32)
+      run: cargo clippy --target wasm32-unknown-unknown -p trainer-web --all-targets -- -D warnings
+
+    - name: Native tests
+      run: cargo test -p trainer-core
+
+    # wasm-bindgen-test-runner must match the wasm-bindgen crate version exactly
+    # or the browser tier fails at runtime with an unhelpful message. Read from
+    # Cargo.lock rather than hardcoded, so a dependency bump cannot desync it.
+    - name: Install wasm-bindgen-cli matching Cargo.lock
+      run: |
+        version=$(grep -A1 '^name = "wasm-bindgen"$' Cargo.lock | grep '^version' | head -1 | cut -d'"' -f2)
+        if [ -z "$version" ]; then
+          echo "::error::Could not read the wasm-bindgen version from Cargo.lock"
+          exit 1
+        fi
+        echo "Pinning wasm-bindgen-cli to $version"
+        if [ "$(wasm-bindgen --version 2>/dev/null | awk '{print $2}')" = "$version" ]; then
+          echo "Already installed and matching; skipping."
+        else
+          cargo install wasm-bindgen-cli --version "$version" --locked
+        fi
+
+    # Chrome and ChromeDriver ship on the GitHub Ubuntu runner images. Chrome
+    # only, deliberately: see the design's browser-engine decision.
+    - name: Locate headless Chrome
+      run: |
+        driver=$(command -v chromedriver || true)
+        if [ -z "$driver" ]; then
+          echo "::error::chromedriver is not on PATH; the runner image changed"
+          exit 1
+        fi
+        echo "CHROMEDRIVER=$driver" >> "$GITHUB_ENV"
+        chromedriver --version
+        google-chrome --version || true
+
+    - name: Browser tests
+      run: cargo test --target wasm32-unknown-unknown -p trainer-web
+
+    # The fixtures are golden data; a test that rewrites one would make the
+    # suite self-confirming. Nothing may be modified by a test run.
+    - name: Fixtures unchanged by the test run
+      working-directory: ${{ github.workspace }}
+      run: |
+        if ! git diff --quiet -- trainer-rs/tests/fixtures; then
+          echo "::error::A test modified a committed fixture:"
+          git --no-pager diff --stat -- trainer-rs/tests/fixtures
+          exit 1
+        fi
+        echo "Fixtures untouched."

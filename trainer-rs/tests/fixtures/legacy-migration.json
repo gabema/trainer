@@ -1,0 +1,16 @@
+{
+  "legacyLocalStorage": {
+    "activities": "[{\u0022id\u0022:1,\u0022activityTypeId\u0022:1,\u0022when\u0022:\u00222025-12-30T08:00:00-08\u0022,\u0022amount\u0022:16,\u0022notes\u0022:\u0022before new year\u0022,\u0022durationSeconds\u0022:null,\u0022knownLocationId\u0022:null},{\u0022id\u0022:2,\u0022activityTypeId\u0022:1,\u0022when\u0022:\u00222026-01-02T09:30:00-08\u0022,\u0022amount\u0022:20,\u0022notes\u0022:null,\u0022durationSeconds\u0022:null,\u0022knownLocationId\u0022:null},{\u0022id\u0022:3,\u0022activityTypeId\u0022:2,\u0022when\u0022:\u00222026-01-03T18:00:00-08\u0022,\u0022amount\u0022:5,\u0022notes\u0022:\u0022\u0022,\u0022durationSeconds\u0022:1800,\u0022knownLocationId\u0022:null},{\u0022id\u0022:4,\u0022activityTypeId\u0022:2,\u0022when\u0022:\u00222026-02-10T07:15:00-08\u0022,\u0022amount\u0022:3,\u0022notes\u0022:null,\u0022durationSeconds\u0022:null,\u0022knownLocationId\u0022:42}]",
+    "activityTypes": "[{\u0022id\u0022:1,\u0022name\u0022:\u0022Water\u0022,\u0022netBenefit\u0022:1,\u0022dailyAmount\u0022:64,\u0022weeklyAmount\u0022:null,\u0022unit\u0022:\u0022oz\u0022,\u0022isPrivate\u0022:false,\u0022decimalPlaces\u0022:0},{\u0022id\u0022:2,\u0022name\u0022:\u0022Run\u0022,\u0022netBenefit\u0022:1,\u0022dailyAmount\u0022:null,\u0022weeklyAmount\u0022:null,\u0022unit\u0022:\u0022mi\u0022,\u0022isPrivate\u0022:false,\u0022decimalPlaces\u0022:2}]"
+  },
+  "indexedDbWritesAfterMigration": {
+    "activities-2025.53": "[{\u0022id\u0022:1,\u0022activityTypeId\u0022:1,\u0022when\u0022:\u00222025-12-30T08:00:00-08\u0022,\u0022amount\u0022:16,\u0022notes\u0022:\u0022before new year\u0022,\u0022durationSeconds\u0022:null,\u0022knownLocationId\u0022:null}]",
+    "activities-2026.01": "[{\u0022id\u0022:2,\u0022activityTypeId\u0022:1,\u0022when\u0022:\u00222026-01-02T09:30:00-08\u0022,\u0022amount\u0022:20,\u0022notes\u0022:null,\u0022durationSeconds\u0022:null,\u0022knownLocationId\u0022:null},{\u0022id\u0022:3,\u0022activityTypeId\u0022:2,\u0022when\u0022:\u00222026-01-03T18:00:00-08\u0022,\u0022amount\u0022:5,\u0022notes\u0022:\u0022\u0022,\u0022durationSeconds\u0022:1800,\u0022knownLocationId\u0022:null}]",
+    "activities-2026.07": "[{\u0022id\u0022:4,\u0022activityTypeId\u0022:2,\u0022when\u0022:\u00222026-02-10T07:15:00-08\u0022,\u0022amount\u0022:3,\u0022notes\u0022:null,\u0022durationSeconds\u0022:null,\u0022knownLocationId\u0022:42}]",
+    "activityTypes": "[{\u0022id\u0022:1,\u0022name\u0022:\u0022Water\u0022,\u0022netBenefit\u0022:1,\u0022dailyAmount\u0022:64,\u0022weeklyAmount\u0022:null,\u0022unit\u0022:\u0022oz\u0022,\u0022isPrivate\u0022:false,\u0022decimalPlaces\u0022:0},{\u0022id\u0022:2,\u0022name\u0022:\u0022Run\u0022,\u0022netBenefit\u0022:1,\u0022dailyAmount\u0022:null,\u0022weeklyAmount\u0022:null,\u0022unit\u0022:\u0022mi\u0022,\u0022isPrivate\u0022:false,\u0022decimalPlaces\u0022:2}]"
+  },
+  "localStorageKeysRemoved": [
+    "activities",
+    "activityTypes"
+  ]
+}

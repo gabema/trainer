@@ -1,0 +1,21 @@
+[package]
+name = "trainer-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# Domain, helpers, services, and the Storage trait. Deliberately has NO browser
+# dependency — no wasm-bindgen, no js-sys, no web-sys. That is enforced by the
+# compiler rather than by review, so the fast native test tier cannot silently
+# shrink as browser code creeps in. Anything needing the DOM belongs in
+# trainer-web instead.
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+async-trait.workspace = true
+
+[features]
+# Exposes fixture-loading helpers to other crates' tests without shipping them
+# in the library.
+test-support = []
