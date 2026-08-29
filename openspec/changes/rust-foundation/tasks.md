@@ -42,11 +42,13 @@
 
 ## 5. Week keys
 
-- [ ] 5.1 Implement .NET's `FirstFourDayWeek` / Monday week-of-year rule paired with the plain calendar year — explicitly NOT `chrono::IsoWeek`
-- [ ] 5.2 Assert every pair in `week-keys.csv` reproduces exactly
-- [ ] 5.3 Port `GetWeekStartDate` including the linear scan from January 1st and its silent fallback when no date matches
-- [ ] 5.4 Port `GetWeekEndDate`, `GetWeekKeysInRange`, `GetStorageKey`, `ExtractWeekKey`
-- [ ] 5.5 Port `WeekHelperTests` scenario-for-scenario
+- [x] 5.1 Implement .NET's `GetWeekOfYearFullDays` for `FirstFourDayWeek` / Monday, paired with the plain calendar year — explicitly NOT `chrono::IsoWeek`, including the recursion onto 31 December that makes an early-January date report as week 52 or 53
+- [x] 5.2 Assert all 11,323 pairs in `week-keys.csv` reproduce exactly
+- [x] 5.3 Port `GetWeekStartDate` including the linear scan and the fallback to the 1 January week when no date matches, verified against all 1,636 rows of `week-boundaries.csv` plus the new `week-unmatched-keys.csv`
+- [x] 5.4 Port `GetWeekEndDate`, `GetWeekKeysInRange`, `GetStorageKey`, `ExtractWeekKey`, returning `Result` where the C# throws
+- [x] 5.5 No `WeekHelperTests` exists to port — `WeekHelper` has **zero** direct unit tests in C#, despite determining every storage key in the app. Its only test-project references are indirect, through `ActivityServiceTests` and `ExportImportServiceTests`. The golden fixtures are its first real coverage, at 11,323 cases
+- [x] 5.6 Pin `GetWeekStartDate`'s unmatched-key fallback from C# as `week-unmatched-keys.csv`; no existing fixture reached that branch
+- [x] 5.7 Characterise the year-boundary anomaly precisely: it occurs in every year whose 1 January is not a Monday, 27 of 31 years from 2010 to 2040, exceptions 2018/2024/2029/2035. An earlier draft claimed 26 occurrences, one per year without exception
 
 ## 6. Pure helpers
 

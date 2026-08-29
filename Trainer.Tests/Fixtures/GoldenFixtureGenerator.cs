@@ -295,6 +295,43 @@ public class GoldenFixtureGenerator
     }
 
     /// <summary>
+    /// Pins GetWeekStartDate's fallback for week keys that no date in the year
+    /// produces. The linear scan finds no match, leaves dateInWeek at January 1st,
+    /// and returns that week's Monday. Task 5.3 requires reproducing this, and no
+    /// other fixture reaches the branch.
+    /// </summary>
+    [Fact]
+    public void GenerateUnmatchedWeekKeyFixture()
+    {
+        if (!GenerationRequested)
+            return;
+
+        var probes = new[] { "2026.99", "2026.00", "2010.60", "2026.54", "2013.53" };
+
+        var sb = new StringBuilder();
+        sb.AppendLine("weekKey,startDate,endDate,producedByAnyDateInYear");
+
+        foreach (var weekKey in probes)
+        {
+            var year = int.Parse(weekKey.Split('.')[0], CultureInfo.InvariantCulture);
+            var produced = false;
+            for (var d = new DateTime(year, 1, 1); d <= new DateTime(year, 12, 31); d = d.AddDays(1))
+            {
+                if (WeekHelper.GetWeekKey(d) == weekKey) { produced = true; break; }
+            }
+
+            var start = WeekHelper.GetWeekStartDate(weekKey);
+            var end = WeekHelper.GetWeekEndDate(weekKey);
+            sb.Append(weekKey).Append(',')
+              .Append(start.ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture)).Append(',')
+              .Append(end.ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture)).Append(',')
+              .AppendLine(produced ? "true" : "false");
+        }
+
+        File.WriteAllText(Path.Combine(FixtureDirectory(), "week-unmatched-keys.csv"), sb.ToString());
+    }
+
+    /// <summary>
     /// Records week keys where GetWeekStartDate does not round-trip: the scan finds a
     /// matching date, then walks back to that week's Monday, which lands in the previous
     /// year's bucket. Happens for the first week key of every year. These are the

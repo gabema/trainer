@@ -82,7 +82,7 @@ GetWeekStartDate("2026.01") → 2025-12-29    (bucket 2025.53, not 2026.01)
 GetWeekEndDate("2026.01")   → 2026-01-04
 ```
 
-`tests/fixtures/week-key-anomalies.csv` records this for all 26 year boundaries in range — one per year, without exception.
+`tests/fixtures/week-key-anomalies.csv` records 27 occurrences across 2010–2040. An earlier draft of this document claimed "one per year, without exception"; that is wrong. The defect occurs in every year whose 1 January is **not** a Monday. The four exceptions — 2018, 2024, 2029, 2035 — are precisely the years when New Year's Day is a Monday, so the walk-back is zero days and the key round-trips.
 
 This is load-bearing. Both `Activities.razor` and `Calendar.razor` use the pattern:
 
