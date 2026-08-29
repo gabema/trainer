@@ -1,0 +1,16 @@
+{
+  "readBackFromStored": {
+    "1": "2026-08-28T15:43:21.0000000-07:00 (Kind=Local)",
+    "7": "2026-06-15T10:00:00.0000000Z (Kind=Utc)",
+    "42": "2026-01-01T00:00:00.0000000 (Kind=Unspecified)",
+    "99": "2026-08-28T15:43:21.1234567-07:00 (Kind=Local)",
+    "100": "2026-08-28T15:43:21.1000000-07:00 (Kind=Local)"
+  },
+  "storageKey": "trainer_active_activities",
+  "serializerOptions": "JsonSerializer.Serialize(entries) with default options - no DateTimeConverter",
+  "afterThreeStarts": "[{\u0022id\u0022:1,\u0022startTime\u0022:\u00222026-08-28T15:43:21-07:00\u0022},{\u0022id\u0022:7,\u0022startTime\u0022:\u00222026-06-15T10:00:00Z\u0022},{\u0022id\u0022:42,\u0022startTime\u0022:\u00222026-01-01T00:00:00\u0022},{\u0022id\u0022:99,\u0022startTime\u0022:\u00222026-08-28T15:43:21.1234567-07:00\u0022},{\u0022id\u0022:100,\u0022startTime\u0022:\u00222026-08-28T15:43:21.1-07:00\u0022}]",
+  "afterOneFinish": "[{\u0022id\u0022:1,\u0022startTime\u0022:\u00222026-08-28T15:43:21-07:00\u0022},{\u0022id\u0022:42,\u0022startTime\u0022:\u00222026-01-01T00:00:00\u0022},{\u0022id\u0022:99,\u0022startTime\u0022:\u00222026-08-28T15:43:21.1234567-07:00\u0022},{\u0022id\u0022:100,\u0022startTime\u0022:\u00222026-08-28T15:43:21.1-07:00\u0022}]",
+  "removesKeyWhenEmpty": true,
+  "setItemCallCount": 9,
+  "removeItemCallCount": 1
+}

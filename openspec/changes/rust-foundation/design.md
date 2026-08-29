@@ -237,11 +237,31 @@ An `Option<String>` that treats the empty string as absent — a natural-looking
 
 Storage additionally writes every optional field explicitly: `durationSeconds` is null 439 times and `knownLocationId` 328 times, where the export omits them entirely.
 
-### The migration and active-activity paths have no real-data coverage
+### Active activities use a THIRD wire format
 
-The captured profile's `localStorage` is **empty** — no legacy `activities` or `activityTypes` keys, and no `trainer_active_activities`. So neither the one-time localStorage-to-IndexedDB migration (task 7.6) nor the active-activity persistence format (task 8.5) can be validated against real data. Both need synthetic fixtures built from the C# implementation, and both should be treated as lower-confidence than the paths backed by a real capture.
+Found while building the synthetic fixtures for task 1.4a. `ActiveActivityService` persists with `JsonSerializer.Serialize(entries)` and **no options** — so no `DateTimeConverter`, and `System.Text.Json`'s default `DateTime` handling applies instead:
 
-Note that roughly a third of `indexeddb-storage.js` is Blazor interop scar tissue (`getItems` defensively handling arrays that Blazor may have marshalled as JSON strings). That code has no Rust counterpart and is simply dropped.
+| kind | `DateTimeConverter` (models) | default (active activities) |
+|---|---|---|
+| `Local` | `2026-08-28T15:43:21-07` | `2026-08-28T15:43:21-07:00` |
+| `Utc` | `2026-06-15T10:00:00Z` | `2026-06-15T10:00:00Z` |
+| `Unspecified` | local offset applied | `2026-01-01T00:00:00` — no suffix |
+| sub-second | never emitted | `.1234567`, `.1` — trailing zeros trimmed |
+
+Two consequences for the port:
+
+- `TrainerTime::parse` uses RFC 3339, which **requires** an offset, so it would reject the `Unspecified` form outright. Active-activity timestamps need their own parser.
+- `TrainerTime::to_wire` emits hour-only offsets and never fractional seconds, so it cannot round-trip these values either.
+
+`ActiveActivityService` is therefore not a consumer of `TrainerTime`. Task 8.5 needs a separate representation carrying three states — UTC, offset, and offset-less — plus sub-second precision at .NET's 100-nanosecond tick resolution. Real values come from `DateTime.Now`, so fractional seconds are the common case, not an edge case.
+
+Recorded in `tests/fixtures/active-activities.json`, captured by driving the real service through a mocked `IJSRuntime` and reading the value back, which confirms `Kind` survives a round trip.
+
+### Legacy migration is captured synthetically
+
+`tests/fixtures/legacy-migration.json` drives the real `MigrateFromLocalStorageAsync` with a mocked runtime and records: the legacy flat `activities` list splitting into week buckets across a year boundary (`activities-2025.53`, `activities-2026.01`, `activities-2026.07`), `activityTypes` written unbucketed under its own key, values in the **storage** format with nulls written, and both legacy localStorage keys removed afterwards.
+
+These fixtures are synthetic rather than captured from a real profile, so confidence in these two paths remains lower than in everything backed by the real export and IndexedDB dump.
 
 ### Browser tests run against Chrome only
 

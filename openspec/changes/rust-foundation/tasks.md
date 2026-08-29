@@ -8,7 +8,9 @@
 - [x] 1.3a Capture both serializer configurations separately — `timestamps-export-*` (nulls omitted) and `timestamps-storage-*` (nulls written) — because `ExportImportService` sets `DefaultIgnoreCondition` and `IndexedDbStorageService` does not
 - [x] 1.3b Capture `timestamps-roundtrip-*` recording what each emitted string parses back to through the converter's own `Read` path
 - [x] 1.4 De-identify a raw IndexedDB dump into `trainer-rs/tests/fixtures/idb-snapshot.json`. Confirms values are structured-cloned Arrays (33 entries), that `activityNextId` is a bare JS Number, and that storage writes every optional field explicitly as `null`
-- [ ] 1.4a Synthesize fixtures for the legacy localStorage migration and for `trainer_active_activities`. The captured profile has an **empty** localStorage, so neither the migration path (task 7.6) nor the active-activity persistence format (task 8.5) can be validated against real data
+- [x] 1.4a Synthesize fixtures for the legacy localStorage migration and for `trainer_active_activities` by driving both real C# code paths with a mocked `IJSRuntime`, since the captured profile's localStorage was empty
+- [x] 1.4b Record `active-activities.json`: the write format, the read-back with `Kind` preserved, and that the key is removed rather than emptied
+- [x] 1.4c Record `legacy-migration.json`: a legacy flat list splitting into week buckets across a year boundary, `activityTypes` written unbucketed, and both legacy keys removed
 - [ ] 1.5 Remove the temporary C# dump harness — **deferred until section 8 is complete**. Sections 3–8 may still need golden values, and the harness cannot be recreated after deletion without another capture. Originally sequenced here, which would have stranded tasks 5.3 and 5.4
 
 ## 2. Crate scaffolding
@@ -79,7 +81,8 @@
 - [ ] 8.2 Port `ActivityTypeService`
 - [ ] 8.3 Port `GoalService`, covering the `neutral-benefit` spec scenarios
 - [ ] 8.4 Port `KnownLocationService` including `FindNearbyAsync` (Haversine, 100m threshold) and `NextAutoNameAsync`. Do NOT attempt to reproduce `AssignId` — it uses `HashCode.Combine`, which .NET seeds randomly per process, so its output is not reproducible by any implementation including itself. Preserve stored ids verbatim; generate new ones by any collision-avoiding scheme
-- [ ] 8.5 Port `ActiveActivityService` state and persistence to `trainer_active_activities`, preserving the `id` / `startTime` entry shape and silent recovery from corrupt state; model the change/tick notifications as signals rather than events
+- [ ] 8.5 Port `ActiveActivityService` state and persistence to `trainer_active_activities`, preserving the `id` / `startTime` entry shape, removal of the key when nothing is active, and silent recovery from corrupt state; model the change/tick notifications as signals rather than events
+- [ ] 8.5a Implement the THIRD wire format this service uses. It serializes with default options and no `DateTimeConverter`, so `TrainerTime` cannot serve it: offsets are full `±hh:mm` rather than hour-only, unspecified-kind values carry no offset suffix at all (which RFC 3339 parsing rejects), and sub-second precision is emitted with trailing zeros trimmed at .NET's 100ns tick resolution. Assert against `active-activities.json`
 - [ ] 8.6 Port `ExportImportService`, preserving the export file format
 - [ ] 8.7 Port `WeekFillLoader`
 - [ ] 8.8 Port `ActivityServiceTests`, `KnownLocationServiceTests`, and `ActiveActivityServiceTests` scenario-for-scenario against `MemStorage`

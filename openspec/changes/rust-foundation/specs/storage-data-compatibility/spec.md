@@ -111,7 +111,9 @@ The Rust implementation SHALL retain the one-time migration that moves `activiti
 - **THEN** the error is logged and the app finishes starting up
 
 ### Requirement: Active activity state format is preserved
-In-progress activities SHALL continue to persist to localStorage under the key `trainer_active_activities` as a list of entries with `id` and `startTime` fields. Corrupt stored state SHALL be cleared and treated as no active activities rather than surfacing an error.
+In-progress activities SHALL continue to persist to localStorage under the key `trainer_active_activities` as a list of entries with `id` and `startTime` fields. Corrupt stored state SHALL be cleared and treated as no active activities rather than surfacing an error. The key SHALL be removed, not written as an empty array, when no activities remain active.
+
+`startTime` SHALL use `System.Text.Json`'s default `DateTime` encoding, which is NOT the encoding used for activity timestamps: offsets are written in full `±hh:mm` form rather than hour-only, an offset-less form is emitted for unspecified-kind values, and sub-second precision is written with trailing zeros trimmed.
 
 #### Scenario: In-progress activities survive the update
 - **WHEN** a user has an in-progress activity started under the C# implementation and then loads the Rust implementation
@@ -120,6 +122,18 @@ In-progress activities SHALL continue to persist to localStorage under the key `
 #### Scenario: Corrupt active state is discarded silently
 - **WHEN** the stored active activity state cannot be parsed
 - **THEN** it is cleared and the app starts with no active activities and no error shown
+#### Scenario: Offsets are written in full rather than hour-only
+- **WHEN** an in-progress activity with a whole-hour local offset is persisted
+- **THEN** its `startTime` ends with `-07:00`, not the `-07` form used for activity timestamps
+
+#### Scenario: Sub-second precision survives
+- **WHEN** an in-progress activity is started at a time carrying sub-second precision
+- **THEN** its `startTime` records the fractional seconds with trailing zeros trimmed, and reading it back yields the same instant
+
+#### Scenario: The key is removed once nothing is active
+- **WHEN** the last in-progress activity is finished
+- **THEN** the `trainer_active_activities` key is removed from localStorage rather than left holding an empty array
+
 
 ### Requirement: Export and import round-trip across implementations
 An export produced by the C# implementation SHALL import into the Rust implementation without loss, and an export produced by the Rust implementation SHALL import into the C# implementation without loss. The export file format SHALL be unchanged.

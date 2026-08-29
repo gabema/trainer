@@ -6,6 +6,9 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Trainer.Models;
 using Trainer.Serialization;
+using Microsoft.JSInterop;
+using Microsoft.JSInterop.Infrastructure;
+using Moq;
 using Trainer.Services;
 
 /// <summary>
@@ -259,6 +262,178 @@ public class GoldenFixtureGenerator
         File.WriteAllText(
             Path.Combine(FixtureDirectory(), "json-escaping.json"),
             JsonSerializer.Serialize(map, options));
+    }
+
+    /// <summary>
+    /// Task 1.4a. The captured profile had an empty localStorage, so neither the
+    /// active-activity format nor the legacy migration has real-data backing.
+    /// Both are therefore driven through the real C# code paths with a mocked
+    /// IJSRuntime and the results recorded.
+    ///
+    /// ActiveActivityService persists with JsonSerializer.Serialize(entries) and
+    /// NO options — so no DateTimeConverter. Its timestamps use System.Text.Json's
+    /// default DateTime handling, which is a third wire format distinct from both
+    /// the export and storage configurations.
+    /// </summary>
+    [Fact]
+    public void GenerateActiveActivityFixture()
+    {
+        if (!GenerationRequested)
+            return;
+
+        var writes = new List<object?[]?>();
+        var removes = new List<object?[]?>();
+
+        var js = new Mock<IJSRuntime>();
+        js.Setup(x => x.InvokeAsync<IJSVoidResult>(It.IsAny<string>(), It.IsAny<object?[]?>()))
+          .Callback<string, object?[]?>((identifier, args) =>
+          {
+              if (identifier == "localStorage.setItem") writes.Add(args);
+              if (identifier == "localStorage.removeItem") removes.Add(args);
+          })
+          .Returns(new ValueTask<IJSVoidResult>((IJSVoidResult)null!));
+
+        using var service = new ActiveActivityService(js.Object);
+
+        // Local-kind and Utc-kind start times, to expose how each is written.
+        service.Start(1, new DateTime(2026, 8, 28, 15, 43, 21, DateTimeKind.Local));
+        service.Start(7, new DateTime(2026, 6, 15, 10, 0, 0, DateTimeKind.Utc));
+        service.Start(42, new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Unspecified));
+        // The realistic case: DateTime.Now carries sub-second ticks, which the
+        // default serializer renders as fractional seconds.
+        service.Start(99, new DateTime(2026, 8, 28, 15, 43, 21, DateTimeKind.Local).AddTicks(1234567));
+        service.Start(100, new DateTime(2026, 8, 28, 15, 43, 21, DateTimeKind.Local).AddTicks(1000000));
+
+        var afterThree = writes.Count > 0 ? writes[^1]?[1] as string : null;
+
+        service.Finish(7);
+        var afterFinish = writes.Count > 0 ? writes[^1]?[1] as string : null;
+
+        service.Finish(1);
+        service.Finish(42);
+        service.Finish(99);
+        service.Finish(100);
+        var removedWhenEmpty = removes.Count > 0;
+
+        // Read path: feed a representative stored value back through InitializeAsync
+        // and record what survives, since Read tolerance is as load-bearing as Write.
+        var storedProbe = afterThree;
+        var readBack = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (storedProbe != null)
+        {
+            var readJs = new Mock<IJSRuntime>();
+            readJs.Setup(x => x.InvokeAsync<string?>("localStorage.getItem", It.IsAny<object?[]?>()))
+                  .Returns(new ValueTask<string?>(storedProbe));
+            readJs.Setup(x => x.InvokeAsync<IJSVoidResult>(It.IsAny<string>(), It.IsAny<object?[]?>()))
+                  .Returns(new ValueTask<IJSVoidResult>((IJSVoidResult)null!));
+
+            using var reader = new ActiveActivityService(readJs.Object);
+            reader.InitializeAsync().GetAwaiter().GetResult();
+            foreach (var kv in reader.GetAll())
+            {
+                readBack[kv.Key.ToString(CultureInfo.InvariantCulture)] =
+                    $"{kv.Value:O} (Kind={kv.Value.Kind})";
+            }
+        }
+
+        var report = new Dictionary<string, object?>
+        {
+            ["readBackFromStored"] = readBack,
+            ["storageKey"] = "trainer_active_activities",
+            ["serializerOptions"] = "JsonSerializer.Serialize(entries) with default options - no DateTimeConverter",
+            ["afterThreeStarts"] = afterThree,
+            ["afterOneFinish"] = afterFinish,
+            ["removesKeyWhenEmpty"] = removedWhenEmpty,
+            ["setItemCallCount"] = writes.Count,
+            ["removeItemCallCount"] = removes.Count,
+        };
+
+        File.WriteAllText(
+            Path.Combine(FixtureDirectory(), "active-activities.json"),
+            JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true }));
+    }
+
+    /// <summary>
+    /// Task 1.4a, second half. Drives the real MigrateFromLocalStorageAsync with a
+    /// mocked IJSRuntime and records what a pre-IndexedDB profile turns into, since
+    /// the captured profile's localStorage was empty and this path has no real-data
+    /// backing.
+    /// </summary>
+    [Fact]
+    public void GenerateLegacyMigrationFixture()
+    {
+        if (!GenerationRequested)
+            return;
+
+        var storageOptions = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            WriteIndented = false,
+            Converters = { new DateTimeConverter() }
+        };
+
+        // A flat list as the pre-IndexedDB app stored it, spanning a year boundary
+        // so the migration has to split it across two week buckets.
+        var legacyActivities = new List<Activity>
+        {
+            new() { Id = 1, ActivityTypeId = 1, When = new DateTime(2025, 12, 30, 8, 0, 0, DateTimeKind.Local), Amount = 16, Notes = "before new year" },
+            new() { Id = 2, ActivityTypeId = 1, When = new DateTime(2026, 1, 2, 9, 30, 0, DateTimeKind.Local), Amount = 20, Notes = null },
+            new() { Id = 3, ActivityTypeId = 2, When = new DateTime(2026, 1, 3, 18, 0, 0, DateTimeKind.Local), Amount = 5, Notes = "", DurationSeconds = 1800 },
+            new() { Id = 4, ActivityTypeId = 2, When = new DateTime(2026, 2, 10, 7, 15, 0, DateTimeKind.Local), Amount = 3, KnownLocationId = 42 },
+        };
+
+        var legacyTypes = new List<ActivityType>
+        {
+            new() { Id = 1, Name = "Water", NetBenefit = NetBenefit.Positive, DailyAmount = 64, Unit = "oz" },
+            new() { Id = 2, Name = "Run", NetBenefit = NetBenefit.Positive, Unit = "mi", DecimalPlaces = 2 },
+        };
+
+        var legacyActivitiesJson = JsonSerializer.Serialize(legacyActivities, storageOptions);
+        var legacyTypesJson = JsonSerializer.Serialize(legacyTypes, storageOptions);
+
+        var setItems = new List<(string Key, string Value)>();
+        var removed = new List<string>();
+
+        var js = new Mock<IJSRuntime>();
+        js.Setup(x => x.InvokeAsync<string?>(It.IsAny<string>(), It.IsAny<object?[]?>()))
+          .Returns((string identifier, object?[]? args) =>
+          {
+              var key = args is { Length: > 0 } ? args[0] as string : null;
+              if (identifier == "localStorage.getItem" && key == "activities")
+                  return new ValueTask<string?>(legacyActivitiesJson);
+              if (identifier == "localStorage.getItem" && key == "activityTypes")
+                  return new ValueTask<string?>(legacyTypesJson);
+              return new ValueTask<string?>((string?)null);
+          });
+        js.Setup(x => x.InvokeAsync<IJSVoidResult>(It.IsAny<string>(), It.IsAny<object?[]?>()))
+          .Callback<string, object?[]?>((identifier, args) =>
+          {
+              if (identifier == "indexedDbStorage.setItem" && args is { Length: > 1 })
+                  setItems.Add((args[0] as string ?? "", args[1] as string ?? ""));
+              if (identifier == "localStorage.removeItem" && args is { Length: > 0 })
+                  removed.Add(args[0] as string ?? "");
+          })
+          .Returns(new ValueTask<IJSVoidResult>((IJSVoidResult)null!));
+
+        using var service = new IndexedDbStorageService(js.Object);
+        // Any public method triggers EnsureInitializedAsync, which runs the migration.
+        service.ClearAsync().GetAwaiter().GetResult();
+
+        var report = new Dictionary<string, object?>
+        {
+            ["legacyLocalStorage"] = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["activities"] = legacyActivitiesJson,
+                ["activityTypes"] = legacyTypesJson,
+            },
+            ["indexedDbWritesAfterMigration"] = setItems
+                .ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal),
+            ["localStorageKeysRemoved"] = removed,
+        };
+
+        File.WriteAllText(
+            Path.Combine(FixtureDirectory(), "legacy-migration.json"),
+            JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true }));
     }
 
     /// <summary>
