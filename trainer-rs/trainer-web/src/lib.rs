@@ -9,9 +9,15 @@
 pub mod build_info;
 
 #[cfg(target_arch = "wasm32")]
+pub mod clock;
+#[cfg(target_arch = "wasm32")]
 pub mod idb;
 #[cfg(target_arch = "wasm32")]
+pub mod notifications;
+#[cfg(target_arch = "wasm32")]
 pub mod routes;
+#[cfg(target_arch = "wasm32")]
+pub mod state;
 #[cfg(target_arch = "wasm32")]
 pub mod views;
 

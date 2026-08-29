@@ -15,6 +15,7 @@ pub fn MainLayout() -> Element {
     rsx! {
         div { class: "page",
             TopNavBar {}
+            crate::views::active_notification::ActiveActivityNotification {}
             main {
                 article { class: "content px-4",
                     Outlet::<Route> {}

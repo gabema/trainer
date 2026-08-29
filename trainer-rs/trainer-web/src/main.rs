@@ -14,6 +14,9 @@ fn main() {
 
     #[component]
     fn App() -> Element {
+        // Installs the active-activity signals and starts the clocks. Must be
+        // above the router so every route can read them from context.
+        trainer_web::state::use_active_activities();
         rsx! { Router::<Route> {} }
     }
 

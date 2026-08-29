@@ -82,7 +82,18 @@ macro_rules! placeholder_with_footer {
     };
 }
 
-placeholder_with_footer!(Home, "Home");
+#[component]
+pub fn Home() -> Element {
+    rsx! {
+        h1 { class: "h4 mb-3", "Home" }
+        // Spec places this after the goal graph and before the activities
+        // list; both arrive in section 5.
+        crate::views::active_activities::ActiveActivities {}
+        p { class: "text-muted", "Not ported yet." }
+        crate::views::layout::AppVersionFooter {}
+    }
+}
+
 placeholder_with_footer!(Activities, "Activities");
 placeholder_with_footer!(Calendar, "Calendar");
 placeholder!(ActivityNew, "Add Activity");

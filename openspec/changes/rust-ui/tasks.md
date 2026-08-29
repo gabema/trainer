@@ -17,12 +17,12 @@
 
 ## 3. Reactive state
 
-- [ ] 3.1 Convert `ActiveActivityService`'s `OnChanged`, `OnTick`, and `OnSlowTick` events to signals, retaining the 1s and 30s timers
-- [ ] 3.2 Confirm no component needs explicit subscribe, unsubscribe, or manual redraw
-- [ ] 3.3 Port `ActiveActivities`, covering the `active-activities` spec scenarios
-- [ ] 3.4 Port `ActiveActivityNotification` against `web_sys::Notification` and `ServiceWorkerRegistration::show_notification_with_options`, preserving the `active-{id}` tag, the silent and non-renotifying options, and the base-path-aware icon URL. Note: web-sys 0.3.104 binds `get_notifications()` with **no filter argument**, so the shim's `getNotifications({tag})` becomes an unfiltered call plus a `Notification::tag()` comparison in Rust — behaviorally equivalent, and it keeps everything on typed bindings
-- [ ] 3.5 Implement notification permission request and the silent no-op when permission is absent
-- [ ] 3.6 Delete `notification-helper.js`
+- [x] 3.1 Convert `OnChanged`, `OnTick` and `OnSlowTick` into three signals, with the 1s and 30s clocks running only while something is active — the behaviour `EnsureTimersRunning` / `StopTimers` had. Each operation is a stateless read-modify-write over the ported service, so localStorage stays authoritative for persistence and the signal for rendering, with nothing to drift between them
+- [x] 3.2 Confirmed: neither component subscribes, unsubscribes, or calls a redraw. Three `IDisposable` implementations and six `InvokeAsync(StateHasChanged)` call sites are gone
+- [x] 3.3 Port `ActiveActivities`. Verified in a browser against the spec scenarios: hidden with nothing active; showing name and `M:SS` elapsed when active; the clock advancing once a second and tracking real elapsed time within one tick; and Finish writing `durationSeconds`, clearing the entry, and removing the section
+- [x] 3.4 Port `ActiveActivityNotification` against `web_sys::Notification` and `ServiceWorkerRegistration::show_notification_with_options`, preserving the `active-{id}` tag, the silent and non-renotifying options, and the base-path-aware icon URL. Note: web-sys 0.3.104 binds `get_notifications()` with **no filter argument**, so the shim's `getNotifications({tag})` becomes an unfiltered call plus a `Notification::tag()` comparison in Rust — behaviorally equivalent, and it keeps everything on typed bindings
+- [x] 3.5 Request permission once on mount, short-circuiting when already granted or denied. Every notification call is best-effort and returns quietly with no permission or no ready service worker — verified by the app running cleanly in headless Chrome, which grants neither
+- [x] 3.6 `notification-helper.js` is not carried into the Rust app — `public/` never included any of the shims. The copy under `Trainer/wwwroot/js/` is left in place deliberately: it is still referenced by the Blazor `index.html`, and deleting it now would break the shipping app for no gain when task 8.3 removes the whole directory
 
 ## 4. Browser APIs
 
