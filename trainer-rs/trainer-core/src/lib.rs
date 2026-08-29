@@ -8,6 +8,7 @@ pub const CRATE_NAME: &str = "trainer-core";
 
 pub mod datetime;
 pub mod escaping;
+pub mod helpers;
 pub mod models;
 pub mod week;
 

@@ -52,13 +52,14 @@
 
 ## 6. Pure helpers
 
-- [ ] 6.1 Port `DateTimeHelper` and its formatting behavior
-- [ ] 6.2 Port `DecimalAmount` and `DecimalPlacesWarning`, covering the `fractional-activity-amounts` spec scenarios
-- [ ] 6.3 Port `DurationInput` parsing, covering the `activity-duration` spec scenarios including `0:30`, plain minutes, and out-of-range seconds
-- [ ] 6.4 Port `ActivityAmountDisplay.FormatDuration`, including the unpadded single-digit seconds requirement
-- [ ] 6.5 Port `ActivitySearchFilter`, covering the `activity-filtering` spec scenarios
-- [ ] 6.6 Port `StringExtensions`
-- [ ] 6.7 Port the corresponding helper tests scenario-for-scenario
+- [x] 6.1 Port `DateTimeHelper` as `helpers::when` — `format_elapsed`, `format_when`, `date_range`. The C# formats with `InvariantCulture`, so `chrono`'s English month and meridiem names match directly
+- [x] 6.2 Port `DecimalAmount` and `DecimalPlacesWarning` as `helpers::amount`, covering every helper-level `fractional-activity-amounts` scenario
+- [x] 6.3 Port `DurationInput` as `helpers::duration`, covering all 10 `activity-duration` scenarios. Parts are trimmed individually because .NET's `int.TryParse` tolerates surrounding whitespace, so `"5 : 30"` parses there and must here
+- [x] 6.4 Port `ActivityAmountDisplay` as `helpers::display`, including unpadded single-digit seconds (`5m 5s`, never `5m 05s`)
+- [x] 6.5 Port `ActivitySearchFilter` as `helpers::search`, covering every helper-level `activity-filtering` scenario, including matching the *displayed* decimal amount rather than the stored integer
+- [x] 6.6 Port `StringExtensions` as `helpers::strings`
+- [x] 6.7 Port all seven helper test files scenario-for-scenario: `DateTimeHelperTests`, `DecimalAmountTests`, `DecimalPlacesWarningTests`, `DurationInputTests`, `ActivityAmountDisplayTests`, `ActivitySearchFilterTests`, `ActivitySearchFilterDecimalTests`
+- [x] 6.8 Record spec coverage. Fully covered here: all 10 `activity-duration` scenarios; the 12 helper-level `fractional-activity-amounts` scenarios. **Deferred to `rust-ui` as view-layer behavior:** `fractional-activity-amounts` — Default precision is whole numbers, Precision is bounded, Goal fields use the same entry; `activity-filtering` — Default filter on page load, Date Duration dropdown options, Custom Range inputs, Reset on cleared query param, the three Finish-button scenarios, and the six week-loading and scroll-trigger scenarios
 
 ## 7. Storage seam
 
