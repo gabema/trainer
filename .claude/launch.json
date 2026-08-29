@@ -3,9 +3,10 @@
   "configurations": [
     {
       "name": "trainer",
-      "runtimeExecutable": "dotnet",
-      "runtimeArgs": ["run", "--project", "Trainer/Trainer.csproj", "--urls", "http://localhost:5100"],
-      "port": 5100
+      "runtimeExecutable": "dx",
+      "runtimeArgs": ["serve", "--platform", "web", "--port", "8080"],
+      "cwd": "trainer-rs/trainer-web",
+      "port": 8080
     }
   ]
 }

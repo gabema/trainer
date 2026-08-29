@@ -14,3 +14,12 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 chrono = { version = "0.4", default-features = false, features = ["clock", "serde", "std"] }
 async-trait = "0.1"
+
+# wasm-opt aborts on DWARF debug info:
+#   "compile unit size was incorrect (this may be an unsupported version of DWARF)"
+# It exits with SIGABRT while dx still reports the build as successful, so the
+# release wasm would silently ship unoptimized. Emitting no debug info avoids it.
+# `strip` is deliberately not used: dx's strip step shells out to a tool that
+# cannot load libLLVM.dylib on this machine.
+[profile.release]
+debug = false

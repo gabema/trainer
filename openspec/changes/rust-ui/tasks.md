@@ -2,10 +2,10 @@
 
 - [x] 1.1 Add `dioxus` 0.7.10 to `trainer-web` with the `web` and `router` features only — no `fullstack`, `server`, `ssr`, `desktop` or `mobile`, since the app is a static bundle with no server. Pinned to stable rather than the 0.8 alpha. Kept under the existing `wasm32` target gate so `trainer-core`'s native tier is untouched
 - [x] 1.2 Add `web-sys` features for geolocation, notifications, the intersection observer, and document access. `GetNotificationOptions` is **not** a valid feature in web-sys 0.3.104 — see task 3.4
-- [ ] 1.3 Configure the Dioxus CLI with base-path support and confirm a release build produces a working `/trainer/`-rooted bundle locally
-- [ ] 1.4 Port `index.html`: drop the Chart.js CDN tag, the Blazor script, and the Blazor error UI; keep the manifest, stylesheets, and service worker registration
-- [ ] 1.5 Reduce `theme.js` to a minimal inline `<head>` script — read `prefers-color-scheme`, set `data-bs-theme`, listen for changes; delete `window.themeManager`, the `themechange` event, and the `chartHelper` call
-- [ ] 1.6 Replace the `GenerateBuildInfo` MSBuild target with `option_env!("TRAINER_VERSION")`, defaulting to `dev`
+- [x] 1.3 Add `Dioxus.toml` with `base_path`, `public_dir`, and `index_on_404`, and confirm a release build produces a `/trainer/`-rooted bundle with content-hashed assets. `wasm-opt` aborts on this toolchain and is left alone — see design
+- [x] 1.4 Port `index.html`, dropping the Chart.js CDN tag, the Blazor runtime, its error UI, loading spinner and scoped-CSS bundle, and all six shim script tags; keeping the manifest, stylesheets, favicon, theme-color and service worker registration. Adds a static `<base href>`, which Dioxus does **not** emit — see design
+- [x] 1.5 Reduce `theme.js` from 74 lines to a 9-line inline `<head>` script: read `prefers-color-scheme`, set `data-bs-theme`, listen for changes. The dead `window.themeManager` API, the unlistened `themechange` event, and the `chartHelper` call are gone
+- [x] 1.6 Replace the `GenerateBuildInfo` MSBuild target with `option_env!("TRAINER_VERSION")`, defaulting to `dev`. Verified both ways: the footer renders `dev` in the browser, and a build with the variable set bakes the value into the binary
 
 ## 2. Shell, routing, and styling
 
@@ -63,7 +63,7 @@
 - [ ] 7.2 Add the browser test tier coverage added in this change to `test.yml`
 - [ ] 7.3 Rewrite `deploy.yml`: Rust toolchain, wasm target, Dioxus CLI, `rust-cache`, `dx build --release`
 - [ ] 7.4 Set `TRAINER_VERSION` from the release tag, stripping the leading `v`
-- [ ] 7.5 Remove the `sed` steps that rewrite `<base href>` in `index.html` and `404.html`
+- [ ] 7.5 Remove the `sed` steps that rewrite `<base href>` in `index.html` and `404.html`. They go because the app now ships a static `<base href="/trainer/">` that is correct in dev too, **not** because Dioxus emits one — it does not
 - [ ] 7.6 Retain the `404.html` copy and confirm the manifest `start_url` is `/trainer/`
 - [ ] 7.7 Confirm a release build deploys to GitHub Pages and loads at the `/trainer/` subpath
 

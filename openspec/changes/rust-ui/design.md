@@ -96,6 +96,47 @@ This release therefore ships `self.skipWaiting()` plus `clients.claim()`. Both s
 
 The `GenerateBuildInfo` MSBuild target writes a `BuildInfo.g.cs` at build time for a single line in `AppVersionFooter.razor`. In Rust this is `option_env!("TRAINER_VERSION").unwrap_or("dev")`, with the workflow setting the variable from the release tag. The `app-version-footer` capability is unchanged; roughly 90% of the machinery goes away.
 
+### Dioxus does not emit a `<base>` tag — the app supplies one
+
+Found while wiring the CLI, and it corrects this document's earlier claim that
+"the `sed` steps die, the CLI has first-class base-path support". Half right.
+
+`[web.app] base_path` rewrites the URLs Dioxus *itself* injects — its wasm and
+JS bundle — and in dev builds it emits a `<meta name="…asset root…">` for the
+router. It does **not** emit a `<base>` element, so the stylesheet, favicon and
+manifest links in a custom `index.html` stay relative and resolve against the
+current route. On a deep link such as `/trainer/activity/5` they would resolve
+to `/trainer/activity/css/app.css` and 404.
+
+The app therefore ships a static `<base href="/trainer/" />`. That is correct in
+both environments because `dx serve` nests the dev server under `base_path`
+too — `router.nest_service(&base_path, …)` — so local development is also at
+`/trainer/`, unlike Blazor where local was `/` and deploy rewrote it.
+
+Net effect on task 7.5: the `<base href>` `sed` steps still go, but because the
+value is now identical everywhere rather than because the CLI handles it.
+
+Verified in a browser: every asset resolves under `/trainer/`, and the only 404
+is `GET /`, which is correct since the app is not served from the domain root.
+
+### `wasm-opt` aborts on this toolchain
+
+`dx build --release` runs `wasm-opt` by default and it exits with SIGABRT:
+
+```
+compile unit size was incorrect (this may be an unsupported version of DWARF)
+```
+
+`dx` reports the build as successful regardless, so the wasm ships unoptimized
+while the log says everything passed. Neither `[profile.release] debug = false`
+nor removing the `[web.wasm_opt]` tuning avoids it; `strip` is worse, since dx's
+strip step cannot load `libLLVM.dylib` here.
+
+Left as is rather than worked around. Bundle size is explicitly not a goal of
+this rewrite, the emitted bundle is correct, and the failure is a local
+binaryen/DWARF incompatibility rather than anything this change introduced.
+Whether it also occurs on the Linux CI runner is checked at task 7.7.
+
 ### Deploy workflow
 
 | Step today | After |
