@@ -36,6 +36,7 @@ features = [
   "IdbTransactionMode",
   "IdbVersionChangeEvent",
   "DomStringList",
+  "DomException",
   "Event",
   "EventTarget",
 ]

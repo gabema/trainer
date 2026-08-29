@@ -6,6 +6,14 @@
 //! crate boundary means the fast native tier in `trainer-core` cannot quietly
 //! acquire browser dependencies.
 
+#[cfg(target_arch = "wasm32")]
+pub mod idb;
+#[cfg(target_arch = "wasm32")]
+pub mod local;
+
+#[cfg(all(test, target_arch = "wasm32"))]
+mod idb_tests;
+
 #[cfg(all(test, target_arch = "wasm32"))]
 mod tier_check {
     //! Verifies the browser test tier is wired up and can reach the APIs the

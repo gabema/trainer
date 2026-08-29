@@ -65,15 +65,17 @@
 
 ## 7. Storage seam
 
-- [ ] 7.1 Define the `Storage` trait as `#[async_trait(?Send)]` mirroring `IStorageService`
-- [ ] 7.2 Implement portable `MemStorage` to stand in for Moq in service tests
-- [ ] 7.3 Implement the `IdbRequest → Future` adapter with `Closure` plus oneshot, confined to one module
-- [ ] 7.4 Implement `IdbStorage` against database `Trainer` v1, object store `activities`, preserving the `js_sys::JSON` parse-on-write / stringify-on-read boundary. Open **without** an explicit version so no upgrade transaction can fire. Handle scalar values: `activityNextId` is stored as a bare JS Number, not an object or array
-- [ ] 7.4a Cover all four storage key shapes seen in the real profile: `activities-{weekKey}` (Array), `activityTypes` (Array), `knownLocations` (Array), `activityNextId` (Number)
-- [ ] 7.5 Implement week-bucketed read/write, including removal of emptied buckets
-- [ ] 7.6 Implement the one-time localStorage-to-IndexedDB migration, non-fatal on failure
-- [ ] 7.7 Verify `IdbStorage` against `idb-snapshot.json` under `wasm-bindgen-test`: values read back as objects, database is not upgraded, keys match
-- [ ] 7.8 Port `LocalStorageServiceTests` scenario-for-scenario
+- [x] 7.1 Define the `Storage` trait as `#[async_trait(?Send)]`. It deals in JSON strings rather than mirroring the C# generic `GetItemAsync<T>`, which is not object-safe in Rust and was only ever sugar over the same string boundary
+- [x] 7.2 Implement portable `MemStorage` to stand in for Moq, plus a dependency-free `block_on` for the native tier that panics rather than spins if a future ever yields
+- [x] 7.3 Implement `await_request`, wrapping an `IdbRequest` in a `Promise` so `JsFuture` can await it. Handlers use `Closure::once_into_js`; the unfired sibling leaks a small allocation, deliberately, because dropping a `Closure` from inside its own callback would be unsound
+- [x] 7.4 Implement `IdbStorage` against database `Trainer` v1, object store `activities`, preserving the `js_sys::JSON` parse-on-write / stringify-on-read boundary. Open **at version 1 with an upgrade handler**, correcting this task as written: opening without a version leaves a fresh profile with no object store, and version 1 against an existing version-1 database never fires the upgrade anyway
+- [x] 7.4a Cover all four storage key shapes seen in the real profile: `activities-{weekKey}` (Array), `activityTypes` (Array), `knownLocations` (Array), `activityNextId` (Number)
+- [x] 7.5 Implement week bucketing as a `WeekBucketed<S>` decorator that itself implements `Storage`, reproducing the `activities` aggregate key and removing emptied buckets. Being a decorator over `MemStorage` keeps it in the native tier
+- [x] 7.6 Implement the one-time localStorage-to-IndexedDB migration, non-fatal on failure, verified byte-identical against the C#-captured `legacy-migration.json`
+- [x] 7.7 Verify `IdbStorage` against `idb-snapshot.json` under `wasm-bindgen-test`: buckets read back as `Array`, `activityNextId` as a number, the database is not upgraded, and prefix search excludes the sibling `activit*` keys
+- [x] 7.8 Port `LocalStorageServiceTests` scenario-for-scenario against `MemStorage`, and add a `LocalStorage` implementation for the browser
+
+- [x] 7.9 Reproduce .NET's whole-double formatting (`10.0` -> `10`) via `write_f64`, and regenerate the fixtures, which had carried Python's `repr` form and so never matched C#
 
 ## 8. Services
 

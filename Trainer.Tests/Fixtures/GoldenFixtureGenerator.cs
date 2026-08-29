@@ -437,6 +437,44 @@ public class GoldenFixtureGenerator
     }
 
     /// <summary>
+    /// Pins how System.Text.Json writes doubles. KnownLocation latitude and
+    /// longitude are doubles, and whole-valued ones are the case where .NET,
+    /// serde_json and JSON.stringify can each disagree.
+    /// </summary>
+    [Fact]
+    public void GenerateDoubleFormattingFixture()
+    {
+        if (!GenerationRequested)
+            return;
+
+        var options = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            WriteIndented = false,
+            Converters = { new DateTimeConverter() }
+        };
+
+        var probes = new[]
+        {
+            0.0, 1.0, 10.0, -20.0, 0.5, -0.5,
+            37.4219983, -122.084, 21.111111, 19.9999999,
+            1e21, 1e-7, 0.1, 1.0 / 3.0,
+        };
+
+        var map = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var probe in probes)
+        {
+            var location = new KnownLocation { Id = 1, Name = "L", Latitude = probe, Longitude = 0.0 };
+            var json = JsonSerializer.Serialize(location, options);
+            map[probe.ToString("R", CultureInfo.InvariantCulture)] = json;
+        }
+
+        File.WriteAllText(
+            Path.Combine(FixtureDirectory(), "double-formatting.json"),
+            JsonSerializer.Serialize(map, new JsonSerializerOptions { WriteIndented = true }));
+    }
+
+    /// <summary>
     /// Pins CROSS-ZONE behavior: reads the Los Angeles fixture and re-serializes it under
     /// the current process timezone. DateTimeConverter.Read returns dto.DateTime (Kind
     /// Unspecified) for non-zero offsets, discarding the parsed offset, so Write then

@@ -89,6 +89,10 @@ def dotnet_dumps(value):
     if isinstance(value, int):
         return str(value)
     if isinstance(value, float):
+        # System.Text.Json drops the fractional part of a whole-valued double:
+        # 10.0 is written as 10, not 10.0. Python's repr would keep it.
+        if value == int(value) and abs(value) < 1e15:
+            return str(int(value))
         return repr(value)
     if isinstance(value, list):
         return "[" + ",".join(dotnet_dumps(v) for v in value) + "]"

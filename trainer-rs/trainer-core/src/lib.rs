@@ -10,6 +10,7 @@ pub mod datetime;
 pub mod escaping;
 pub mod helpers;
 pub mod models;
+pub mod storage;
 pub mod week;
 
 // Available to this crate's own tests as well as to trainer-web's, without

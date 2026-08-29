@@ -84,6 +84,17 @@ Serialized strings SHALL be escaped as `JavaScriptEncoder.Default` escapes them,
 - **WHEN** an activity whose notes contain a character at U+007F or above is serialized
 - **THEN** that character appears in `\uXXXX` form with uppercase hexadecimal rather than as literal UTF-8
 
+### Requirement: Numbers are formatted as the previous serializer formatted them
+A whole-valued double SHALL be written without a fractional part, so a latitude of exactly ten is written `10` rather than `10.0`. Coordinates SHALL otherwise be written in their shortest form that round-trips.
+
+#### Scenario: A whole-valued coordinate keeps its existing form
+- **WHEN** a known location whose latitude is exactly a whole number is serialized
+- **THEN** the emitted JSON contains `"latitude":10`, not `"latitude":10.0`
+
+#### Scenario: A fractional coordinate is unchanged
+- **WHEN** a known location with a fractional latitude is serialized
+- **THEN** the emitted value matches what the previous implementation wrote for the same double
+
 ### Requirement: Export and storage use distinct serializer configurations
 The implementation SHALL maintain two serializer configurations, because the C# implementation does. `ExportImportService` sets `DefaultIgnoreCondition = WhenWritingNull`, so unset optional fields are omitted from exports. `IndexedDbStorageService` sets no ignore condition, so unset optional fields are written as explicit `null` in storage. Neither configuration SHALL be used in place of the other.
 

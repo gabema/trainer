@@ -182,6 +182,66 @@ Escaping matters only where the JSON string is itself the artifact — exports. 
 
 *Fixture consequence:* the first de-identification pass replaced note text with plain ASCII and destroyed all escape evidence, so `export.json` initially exercised none of this. `deidentify.py` now emits .NET-escaped JSON and carries escape-triggering characters through into replacement text, so the fixture tests the escaper without carrying real content.
 
+### Open IndexedDB at version 1, not without a version
+
+An earlier draft of this document — and the console snippet used to capture the
+profile dump — said to open **without** an explicit version so no upgrade
+transaction could fire. That is right for a read-only dump and wrong for the app.
+
+Opening without a version against a database that does not yet exist creates it
+at version 1 with **no object store**, and every subsequent transaction fails.
+The JavaScript shim opens at version 1 and creates the store in
+`onupgradeneeded`; the port does the same. Opening at version 1 against an
+existing version-1 database does not fire the upgrade handler, so existing
+profiles are still untouched — which is what the requirement actually cares
+about, and is asserted in the browser tier.
+
+### `System.Text.Json` drops the fractional part of whole doubles
+
+Surfaced by the browser tier, which compared a stored coordinate against the
+fixture and found `10` where the fixture said `10.0`.
+
+| value | `System.Text.Json` | `serde_json` |
+|---|---|---|
+| `10.0` | `10` | `10.0` |
+| `0.5` | `0.5` | `0.5` |
+| `1e21` | `1E+21` | `1e21` |
+| `1e-7` | `1E-07` | `1e-7` |
+
+`KnownLocation`'s latitude and longitude are the only doubles in the domain, and
+a whole-valued coordinate is entirely reachable — a stored `0.0` would otherwise
+be written `0.0` where every existing record says `0`.
+
+Handled by overriding `write_f64` on the formatter. Rust's `Display` for `f64`
+already emits the shortest round-tripping form without a trailing `.0`, which
+matches .NET exactly for every reachable value, so no new dependency is needed.
+
+*Known gap, recorded rather than hidden.* The exponent forms are not reproduced.
+Coordinates are bounded to ±180, so no value in the domain reaches them, and
+matching .NET's exponent threshold would be guesswork against behavior that
+cannot be exercised. The test asserts the twelve reachable probes from
+`double-formatting.json` and asserts that exactly two are skipped, so the gap
+cannot widen unnoticed.
+
+*This also invalidated a fixture.* `deidentify.py` emitted Python's `repr`, so
+`export.json` carried `10.0` and the byte-identity test passed only because both
+sides were wrong the same way. The generator now matches .NET, and the fixture
+was regenerated. That is the third time de-identification has weakened a fixture;
+the pattern is that synthetic replacement values differ in character class or
+numeric form from the real ones they stand in for.
+
+### `Closure` lifetimes are confined to one function
+
+Every IndexedDB operation is an event-driven `IdbRequest`. `await_request` wraps
+one in a `Promise` so `JsFuture` can await it, and is the only place in the port
+that manages `Closure` lifetimes.
+
+Handlers are installed with `Closure::once_into_js`, which frees the closure once
+it fires. Exactly one of `onsuccess` / `onerror` fires, so the other leaks a small
+allocation. That is deliberate: the alternative — sharing both closures through a
+cell and dropping them from inside a handler — would drop a `Closure` while its
+own JS callback is still on the stack, which is unsound.
+
 ### `EmptyStringAsNullConverter` is dead code
 
 `Trainer/Serialization/EmptyStringAsNullConverter.cs` converts empty strings to null on write and null to empty string on read. It is referenced nowhere: not registered in either `JsonSerializerOptions`, not applied via `[JsonConverter]`. Real exports therefore contain `"notes":""` rather than omitting the field. It is not ported.

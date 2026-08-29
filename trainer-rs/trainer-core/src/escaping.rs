@@ -72,6 +72,33 @@ impl Formatter for DotNetFormatter {
         Ok(())
     }
 
+    /// Writes doubles as `System.Text.Json` does for every value the models can
+    /// actually hold.
+    ///
+    /// ```text
+    /// 10.0   ->  10      serde_json writes 10.0
+    /// 0.5    ->  0.5     agrees
+    /// ```
+    ///
+    /// Rust's `Display` for `f64` already emits the shortest round-tripping form
+    /// without a trailing `.0`, which is exactly .NET's behavior here.
+    ///
+    /// **Known gap.** For magnitudes where .NET switches to exponent notation it
+    /// writes `1E+21` and `1E-07`, whereas `Display` expands them in full. The
+    /// only doubles in the domain are `KnownLocation`'s latitude and longitude,
+    /// bounded to ±180, so no such value is reachable; reproducing .NET's
+    /// exponent threshold would be guesswork against untested behavior.
+    fn write_f64<W>(&mut self, writer: &mut W, value: f64) -> io::Result<()>
+    where
+        W: ?Sized + io::Write,
+    {
+        if !value.is_finite() {
+            // Matches serde_json; JSON cannot represent these anyway.
+            return writer.write_all(b"null");
+        }
+        write!(writer, "{value}")
+    }
+
     /// Handles the characters `serde_json` already escapes, where .NET differs
     /// on two counts: it uses `"` for a quote rather than `\"`, and it
     /// emits uppercase hex for control characters.
@@ -128,6 +155,43 @@ mod tests {
                 "U+{raw:04X} escaped differently from System.Text.Json"
             );
         }
+    }
+
+    #[test]
+    fn doubles_match_csharp_for_every_reachable_value() {
+        let table: BTreeMap<String, String> =
+            serde_json::from_value(read_json_fixture("double-formatting.json"))
+                .expect("the double table parses");
+
+        let mut checked = 0;
+        let mut skipped = Vec::new();
+
+        for (probe, expected_json) in &table {
+            let value: f64 = probe.parse().expect("probe parses");
+
+            // Latitude and longitude are the only doubles in the domain and are
+            // bounded to +/-180, so anything outside that is unreachable.
+            if value != 0.0 && (value.abs() > 180.0 || value.abs() < 1e-6) {
+                skipped.push(probe.clone());
+                continue;
+            }
+
+            let location = crate::models::KnownLocation {
+                id: 1,
+                name: "L".to_owned(),
+                latitude: value,
+                longitude: 0.0,
+            };
+            let actual = crate::models::to_json(&location, crate::models::Format::Storage)
+                .expect("serializes");
+
+            assert_eq!(&actual, expected_json, "double {probe} diverged");
+            checked += 1;
+        }
+
+        assert!(checked >= 10, "only {checked} reachable doubles checked");
+        // The unreachable exponent cases, recorded rather than silently ignored.
+        assert_eq!(skipped.len(), 2, "unexpected skips: {skipped:?}");
     }
 
     #[test]
