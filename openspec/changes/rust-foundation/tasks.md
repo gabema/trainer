@@ -1,3 +1,7 @@
+## 0. Notes
+
+- [x] 10.7 Add a CI guard asserting no test run modifies a committed fixture. Golden data that a test can rewrite would make the suite self-confirming
+
 ## 1. Golden fixtures (before any implementation)
 
 - [x] 1.1 Add a temporary C# console/test harness that dumps `(date, weekKey)` pairs from `WeekHelper.GetWeekKey` for every day across a 20-year span covering multiple year boundaries; commit the output as `trainer-rs/tests/fixtures/week-keys.csv`
@@ -98,9 +102,9 @@
 
 ## 10. CI
 
-- [ ] 10.1 Add Rust toolchain, `wasm32-unknown-unknown` target, and `Swatinem/rust-cache` to `test.yml`
-- [ ] 10.2 Add `cargo test` for the native tier
-- [ ] 10.3 Add headless Chrome setup and the `wasm-bindgen-test` tier, with `wasm-bindgen-cli` pinned to the `wasm-bindgen` crate version. Chrome only — no second engine, decided deliberately
-- [ ] 10.4 Add `cargo fmt --check` and `cargo clippy --all-targets -- -D warnings` for BOTH the host and `wasm32-unknown-unknown` targets — the wasm-gated test module is invisible to a host-only clippy run. Matches the strictness of the existing `CodeAnalysisTreatWarningsAsErrors` setting; both are clean as of section 2
-- [ ] 10.5 Confirm the existing .NET build and test steps still run and pass alongside the Rust steps
-- [ ] 10.6 Confirm `deploy.yml` is unmodified and the Blazor app still publishes
+- [x] 10.1 Add a separate `rust` job with `dtolnay/rust-toolchain`, the `wasm32-unknown-unknown` target, and `Swatinem/rust-cache`. Two jobs rather than more steps in one, so the Rust and .NET suites run in parallel and fail independently
+- [x] 10.2 Add `cargo test -p trainer-core` for the native tier
+- [x] 10.3 Add the `wasm-bindgen-test` tier against headless Chrome. `wasm-bindgen-cli` is pinned by **reading the version out of `Cargo.lock`** rather than hardcoding it, so a dependency bump cannot desync the CLI from the crate; the install is skipped when the cached binary already matches. Chrome only, decided deliberately
+- [x] 10.4 Add `cargo fmt --check` plus `cargo clippy --all-targets -- -D warnings` for BOTH targets, matching the strictness of `CodeAnalysisTreatWarningsAsErrors`. The host-only run cannot see `trainer-web`'s wasm-gated code or any of its tests
+- [x] 10.5 The .NET job is unchanged and still gates merges; its 223 tests pass, now including `RustInteropTests`, so the `dotnet` job also guards the Rust-to-C# direction
+- [x] 10.6 `deploy.yml` is byte-identical to `main`, and `dotnet publish --configuration Release` still succeeds, so the shipping app is verifiably unbroken rather than merely untouched
