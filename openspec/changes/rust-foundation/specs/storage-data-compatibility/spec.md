@@ -69,6 +69,21 @@ Empty strings SHALL be serialized as `""`. The `EmptyStringAsNullConverter` pres
 - **WHEN** an activity whose notes are an empty string is serialized
 - **THEN** the emitted JSON contains `"notes":""`, neither omitting the field nor writing null
 
+### Requirement: String escaping matches the previous serializer
+Serialized strings SHALL be escaped as `JavaScriptEncoder.Default` escapes them, not merely as JSON requires. A double quote SHALL be written as `"`; `&`, `'`, `+`, `<`, `>`, and a backtick SHALL be written in `\uXXXX` form; every character at U+007F or above SHALL be written in `\uXXXX` form with uppercase hexadecimal, using UTF-16 surrogate pairs above the Basic Multilingual Plane; and C0 control characters without a short form SHALL use uppercase hexadecimal.
+
+#### Scenario: A positive UTC offset is escaped
+- **WHEN** a timestamp with a positive UTC offset is serialized
+- **THEN** the `+` appears as `+`, so a user east of Greenwich sees the same bytes the previous implementation wrote
+
+#### Scenario: Note text containing HTML-sensitive characters
+- **WHEN** an activity whose notes contain an apostrophe or ampersand is serialized
+- **THEN** those characters appear as `'` and `&`
+
+#### Scenario: Non-ASCII note text
+- **WHEN** an activity whose notes contain a character at U+007F or above is serialized
+- **THEN** that character appears in `\uXXXX` form with uppercase hexadecimal rather than as literal UTF-8
+
 ### Requirement: Export and storage use distinct serializer configurations
 The implementation SHALL maintain two serializer configurations, because the C# implementation does. `ExportImportService` sets `DefaultIgnoreCondition = WhenWritingNull`, so unset optional fields are omitted from exports. `IndexedDbStorageService` sets no ignore condition, so unset optional fields are written as explicit `null` in storage. Neither configuration SHALL be used in place of the other.
 

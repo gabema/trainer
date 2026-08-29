@@ -41,6 +41,74 @@ LOCATION_NAMES = [
 ]
 
 
+
+# --- System.Text.Json compatible encoding ---------------------------------
+# The C# app sets no custom Encoder, so JavaScriptEncoder.Default escapes
+# HTML-sensitive ASCII plus everything non-ASCII. Python's json module does
+# neither, so a fixture written with json.dump would not match what the app
+# actually produces. See trainer-core/src/escaping.rs.
+
+_HTML_SENSITIVE = "&'+<>`"
+_SHORT_ESCAPES = {"\b": "\\b", "\t": "\\t", "\n": "\\n", "\f": "\\f", "\r": "\\r"}
+
+
+def _dotnet_escape(text):
+    out = []
+    for ch in text:
+        cp = ord(ch)
+        if ch == '"':
+            out.append("\\u0022")
+        elif ch == "\\":
+            out.append("\\\\")
+        elif ch in _SHORT_ESCAPES:
+            out.append(_SHORT_ESCAPES[ch])
+        elif cp < 0x20:
+            out.append(f"\\u{cp:04X}")
+        elif ch in _HTML_SENSITIVE or cp >= 0x7F:
+            # UTF-16 code units, so astral characters become surrogate pairs
+            # exactly as .NET emits them.
+            encoded = ch.encode("utf-16-be")
+            for i in range(0, len(encoded), 2):
+                unit = int.from_bytes(encoded[i:i + 2], "big")
+                out.append(f"\\u{unit:04X}")
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def dotnet_dumps(value):
+    """Minified JSON with System.Text.Json's escaping and insertion order."""
+    if value is None:
+        return "null"
+    if value is True:
+        return "true"
+    if value is False:
+        return "false"
+    if isinstance(value, str):
+        return '"' + _dotnet_escape(value) + '"'
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, float):
+        return repr(value)
+    if isinstance(value, list):
+        return "[" + ",".join(dotnet_dumps(v) for v in value) + "]"
+    if isinstance(value, dict):
+        return "{" + ",".join(
+            '"' + _dotnet_escape(str(k)) + '":' + dotnet_dumps(v) for k, v in value.items()
+        ) + "}"
+    raise TypeError(f"unsupported type: {type(value)!r}")
+
+
+# Characters whose presence changes the escaped output. Replacement text keeps
+# the same set so the fixture still exercises the escaper.
+_ESCAPE_TRIGGERS = set("&'+<>`\"\\")
+
+
+def preserve_escapables(original, replacement):
+    extras = sorted({c for c in original if c in _ESCAPE_TRIGGERS or ord(c) > 126})
+    return replacement + " " + "".join(extras) if extras else replacement
+
+
 def deidentify(src: dict) -> dict:
     out = {}
 
@@ -57,7 +125,9 @@ def deidentify(src: dict) -> dict:
                     if v == "":
                         new[k] = ""
                     else:
-                        new[k] = NOTE_TEXTS[note_i % len(NOTE_TEXTS)]
+                        new[k] = preserve_escapables(
+                            v, NOTE_TEXTS[note_i % len(NOTE_TEXTS)]
+                        )
                         note_i += 1
                 else:
                     new[k] = v
@@ -71,9 +141,9 @@ def deidentify(src: dict) -> dict:
         new = {}
         for k, v in t.items():
             if k == "name":
-                new[k] = TYPE_NAMES[i % len(TYPE_NAMES)]
+                new[k] = preserve_escapables(v, TYPE_NAMES[i % len(TYPE_NAMES)])
             elif k == "unit":
-                new[k] = UNITS[i % len(UNITS)]
+                new[k] = preserve_escapables(v, UNITS[i % len(UNITS)])
             else:
                 new[k] = v
         types.append(new)
@@ -88,7 +158,7 @@ def deidentify(src: dict) -> dict:
         new = {}
         for k, v in loc.items():
             if k == "name":
-                new[k] = LOCATION_NAMES[i % len(LOCATION_NAMES)]
+                new[k] = preserve_escapables(v, LOCATION_NAMES[i % len(LOCATION_NAMES)])
             elif k == "latitude":
                 new[k] = round(10.0 + i * 1.1111111, 7)
             elif k == "longitude":
@@ -134,7 +204,9 @@ def deidentify_snapshot(src: dict) -> dict:
                         elif v == "":
                             row[k] = ""            # empty string stays empty string
                         else:
-                            row[k] = NOTE_TEXTS[note_i % len(NOTE_TEXTS)]
+                            row[k] = preserve_escapables(
+                                v, NOTE_TEXTS[note_i % len(NOTE_TEXTS)]
+                            )
                             note_i += 1
                     else:
                         row[k] = v
@@ -194,9 +266,11 @@ def main() -> int:
 
     result = deidentify_snapshot(src) if "entries" in src else deidentify(src)
 
-    # Match System.Text.Json with WriteIndented = false: no whitespace at all.
+    # Match System.Text.Json: WriteIndented = false and the default encoder's
+    # escaping. json.dump would emit "+" and "\u00BD" literally, which is not
+    # what the app produces.
     with open(sys.argv[2], "w", encoding="utf-8") as f:
-        json.dump(result, f, separators=(",", ":"), ensure_ascii=False)
+        f.write(dotnet_dumps(result))
 
     return 0
 

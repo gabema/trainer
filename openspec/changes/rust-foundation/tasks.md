@@ -31,10 +31,14 @@
 
 ## 4. Domain models
 
-- [ ] 4.1 Port `Activity`, `ActivityType`, `KnownLocation`, `NetBenefit`, `DurationOption` with camelCase serde naming, non-indented output, and field order matching the C# record declaration order
-- [ ] 4.1a Model `notes` so all three observed states stay distinct: `None`, `Some("")`, and `Some(text)`. In the real profile these occur 50 / 38 / 439 times; collapsing empty string to `None` would corrupt 38 activities
-- [ ] 4.2 Implement TWO serde configurations: export (skip `None`) and storage (serialize `None` as `null`). Do NOT port `EmptyStringAsNullConverter` — it is dead code, registered in no `JsonSerializerOptions` and applied via no attribute, which is why empty notes serialize as `""` rather than being nulled and omitted
-- [ ] 4.3 Assert serialized output of each model matches the corresponding fragment of the export fixture byte-for-byte
+- [x] 4.1 Port `Activity`, `ActivityType`, `KnownLocation`, `NetBenefit`, `DurationOption` with camelCase serde naming, non-indented output, and field order matching the C# record declaration order. `NetBenefit` keeps an `Other(i32)` variant because `System.Text.Json` accepts undefined enum integers
+- [x] 4.1a Model `notes` so all three observed states stay distinct: `None`, `Some("")`, and `Some(text)`, asserted at 50 / 38 / 439 against the real profile
+- [x] 4.2 Implement TWO serde configurations via the `Fmt` wrapper, since a serde derive cannot switch at runtime: export skips `None`, storage writes `null`. `EmptyStringAsNullConverter` is NOT ported — it is dead code, which is why empty notes serialize as `""`
+- [x] 4.3 Assert byte-identity against genuine C# output: the full `export.json` document, plus every `timestamps-export-*` fixture in Export format and every `timestamps-storage-*` fixture in Storage format, with a guard test proving the two formats still differ
+
+- [x] 4.4 Reproduce `System.Text.Json`'s string escaping via a `serde_json` `Formatter`. `JavaScriptEncoder.Default` escapes `"`, `&`, `'`, `+`, `<`, `>`, backtick and everything at U+007F or above; `serde_json` escapes almost none of it. Not a corner case: every positive UTC offset contains `+`, and the real export holds 15 such escapes
+- [x] 4.4a Record the authoritative escape table from C# across all 128 ASCII code points plus a non-ASCII spread as `json-escaping.json`, and assert the Rust escaper against every entry
+- [x] 4.4b Fix `deidentify.py`, which had destroyed all escape evidence by substituting plain-ASCII notes. It now emits .NET-escaped JSON and carries escape-triggering characters into replacement text, so `export.json` exercises the escaper
 
 ## 5. Week keys
 

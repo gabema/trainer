@@ -218,6 +218,50 @@ public class GoldenFixtureGenerator
     }
 
     /// <summary>
+    /// Dumps exactly which characters System.Text.Json's default JavaScriptEncoder
+    /// escapes. The shipping app sets no custom Encoder, so both serializer
+    /// configurations use the default, which escapes far more than JSON requires
+    /// (HTML-sensitive ASCII plus everything non-ASCII) as XSS defence-in-depth.
+    /// serde_json escapes only the JSON minimum, so the port must reproduce this
+    /// to keep exports byte-identical.
+    /// </summary>
+    [Fact]
+    public void GenerateEscapingFixture()
+    {
+        if (!GenerationRequested)
+            return;
+
+        var options = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            WriteIndented = false,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+            Converters = { new DateTimeConverter() }
+        };
+
+        var map = new SortedDictionary<string, string>(StringComparer.Ordinal);
+
+        var probes = new List<int>();
+        for (int c = 0; c < 128; c++)
+            probes.Add(c);
+        foreach (var c in new[] { 0x00A0, 0x00BD, 0x00E9, 0x20AC, 0x2019, 0x4E2D, 0x1F600 })
+            probes.Add(c);
+
+        foreach (var cp in probes)
+        {
+            var probe = char.ConvertFromUtf32(cp);
+            var json = JsonSerializer.Serialize(probe, options);
+            // Strip the surrounding quotes so the value is the encoded form alone.
+            map[$"U+{cp:X4}"] = json.Substring(1, json.Length - 2);
+        }
+
+        // Emitted as JSON so the encoded forms survive without CSV quoting games.
+        File.WriteAllText(
+            Path.Combine(FixtureDirectory(), "json-escaping.json"),
+            JsonSerializer.Serialize(map, options));
+    }
+
+    /// <summary>
     /// Pins CROSS-ZONE behavior: reads the Los Angeles fixture and re-serializes it under
     /// the current process timezone. DateTimeConverter.Read returns dto.DateTime (Kind
     /// Unspecified) for non-zero offsets, discarding the parsed offset, so Write then

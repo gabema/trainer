@@ -160,6 +160,28 @@ The export format and the storage format are **not the same format**, which an e
 
 Both are captured as fixtures (`timestamps-export-*`, `timestamps-storage-*`). The port needs both configurations, and the export fixture alone cannot validate the storage path — which is why the raw IndexedDB dump remains a required task rather than a nice-to-have.
 
+### Reproduce `System.Text.Json`'s string escaping
+
+Found while byte-comparing the Kathmandu fixture, and not anticipated by any earlier draft. The app sets no custom `Encoder`, so both serializer configurations use `JavaScriptEncoder.Default`, which escapes far more than JSON requires as XSS defence-in-depth. `serde_json` escapes only the minimum.
+
+The escape set was measured from the C# implementation across all 128 ASCII code points plus a non-ASCII spread, and committed as `tests/fixtures/json-escaping.json`:
+
+| input | `System.Text.Json` | `serde_json` |
+|---|---|---|
+| `"` | `"` | `\"` |
+| `&` `'` `+` `<` `>` `` ` `` | `&` … | literal |
+| U+007F and above | `\uXXXX`, surrogate pairs above the BMP | literal UTF-8 |
+| other C0 controls | `` (uppercase) | `` (lowercase) |
+| `/` `\` | unescaped / `\\` | same |
+
+This is not a corner case. The real export contains 15 escapes — `½` (½), `'`, `+`, `&` — all from note text. And **every user east of Greenwich has `+` in every stored timestamp**, since a positive UTC offset escapes: `+05:45` is written `+05:45`.
+
+Implemented as a `serde_json::ser::Formatter` rather than a custom serializer: `write_string_fragment` catches the characters `serde_json` considers safe, and `write_char_escape` corrects the two where the two libraries disagree. Numbers and structure still go through `serde_json` unchanged.
+
+Escaping matters only where the JSON string is itself the artifact — exports. Storage values are handed to `JSON.parse` and stored as structured-cloned objects, so escaping is decoded before it reaches IndexedDB. Matching in both formats is nonetheless simpler and harmless.
+
+*Fixture consequence:* the first de-identification pass replaced note text with plain ASCII and destroyed all escape evidence, so `export.json` initially exercised none of this. `deidentify.py` now emits .NET-escaped JSON and carries escape-triggering characters through into replacement text, so the fixture tests the escaper without carrying real content.
+
 ### `EmptyStringAsNullConverter` is dead code
 
 `Trainer/Serialization/EmptyStringAsNullConverter.cs` converts empty strings to null on write and null to empty string on read. It is referenced nowhere: not registered in either `JsonSerializerOptions`, not applied via `[JsonConverter]`. Real exports therefore contain `"notes":""` rather than omitting the field. It is not ported.

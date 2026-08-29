@@ -7,6 +7,8 @@
 pub const CRATE_NAME: &str = "trainer-core";
 
 pub mod datetime;
+pub mod escaping;
+pub mod models;
 
 // Available to this crate's own tests as well as to trainer-web's, without
 // shipping in the library.
