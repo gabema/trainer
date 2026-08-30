@@ -2,7 +2,7 @@
   "name": "Trainer - Health Activity Tracker",
   "short_name": "Trainer",
   "description": "Track your health activities including water, snacks, and activities",
-  "start_url": "/",
+  "start_url": "/trainer/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#007bff",

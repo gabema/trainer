@@ -92,13 +92,31 @@
 
 ## 7. CI and deployment
 
-- [ ] 7.1 Remove the .NET setup, build, and test steps from `test.yml`
-- [ ] 7.2 Add the browser test tier coverage added in this change to `test.yml`
-- [ ] 7.3 Rewrite `deploy.yml`: Rust toolchain, wasm target, Dioxus CLI, `rust-cache`, `dx build --release`. It **must** be `dx build`, not `cargo build`: in release the router reads its base path from `DIOXUS_ASSET_ROOT`, a compile-time variable only the CLI sets, so a cargo-built release would resolve every route against the domain root
-- [ ] 7.4 Set `TRAINER_VERSION` from the release tag, stripping the leading `v`
-- [ ] 7.5 Remove the `sed` steps that rewrite `<base href>` in `index.html` and `404.html`. They go because the app now ships a static `<base href="/trainer/">` that is correct in dev too, **not** because Dioxus emits one — it does not
-- [ ] 7.6 Retain the `404.html` copy and confirm the manifest `start_url` is `/trainer/`
-- [ ] 7.7 Confirm a release build deploys to GitHub Pages and loads at the `/trainer/` subpath
+- [x] 7.1 Remove the .NET setup, build, and test steps from `test.yml`
+- [x] 7.2 Add the browser test tier coverage added in this change to `test.yml`
+- [x] 7.3 Rewrite `deploy.yml`: Rust toolchain, wasm target, Dioxus CLI, `rust-cache`, `dx build --release`. It **must** be `dx build`, not `cargo build`: in release the router reads its base path from `DIOXUS_ASSET_ROOT`, a compile-time variable only the CLI sets, so a cargo-built release would resolve every route against the domain root
+- [x] 7.4 Set `TRAINER_VERSION` from the release tag, stripping the leading `v`
+- [x] 7.5 Remove the `sed` steps that rewrite `<base href>` in `index.html` and `404.html`. They go because the app now ships a static `<base href="/trainer/">` that is correct in dev too, **not** because Dioxus emits one — it does not
+- [x] 7.6 Retain the `404.html` copy and confirm the manifest `start_url` is `/trainer/`
+- [x] 7.7 Confirm a release build deploys to GitHub Pages and loads at the `/trainer/` subpath
+
+> 7.2 needed no change: the browser tier already runs as one step, and the
+> tests added by this change run under it.
+>
+> 7.7 was rehearsed rather than deployed. The workflow's own build and check
+> commands were run locally against a `v1.4.2` tag, and the resulting bundle was
+> served under `/trainer/` behind a server that answers unknown paths with
+> `404.html` at status 404, the way GitHub Pages does. The app booted, the
+> footer read `1.4.2`, every nav href was rooted at `/trainer/`, and
+> `/trainer/activity/5` rendered the edit form rather than an error page. Only a
+> real release tag can exercise Pages itself.
+>
+> Two things the rehearsal caught. `dx` minifies and re-serialises what it
+> copies, so the bundled manifest is one line with its keys reordered — a check
+> written against the source formatting would have failed every deploy. It also
+> minifies `service-worker.js`, which means section 6 verified a file that is not
+> the one that ships; the 18 checks were re-run against the bundled worker and
+> all pass.
 
 ## 8. Retire the C# project
 

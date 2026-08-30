@@ -7,44 +7,6 @@ on:
     branches: [ main ]
 
 jobs:
-  # The shipping app. Unchanged by the Rust port, and still the thing that
-  # deploys, so it keeps its own job and gates merges exactly as before.
-  dotnet:
-    name: .NET (TZ=${{ matrix.tz }})
-    runs-on: ubuntu-latest
-
-    # The C# DateTimeConverter recomputes each timestamp's offset from
-    # TimeZoneInfo.Local on write, so its output is machine-dependent. Running
-    # only in the runner's UTC hides every bug that needs a non-zero offset —
-    # including that a positive offset is escaped as \u002B rather than "+".
-    # Kolkata covers a positive offset with a non-zero minute component.
-    strategy:
-      fail-fast: false
-      matrix:
-        tz: [ UTC, Asia/Kolkata ]
-
-    env:
-      TZ: ${{ matrix.tz }}
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: '10.0.x'
-
-    - name: Restore dependencies
-      run: dotnet restore
-
-    - name: Build
-      run: dotnet build --no-restore
-
-    # Includes RustInteropTests, which imports the committed Rust-produced
-    # export, so this job also guards the Rust-to-C# direction.
-    - name: Test
-      run: dotnet test --no-build --verbosity normal
-
   rust:
     name: Rust
     runs-on: ubuntu-latest
@@ -61,8 +23,8 @@ jobs:
         targets: wasm32-unknown-unknown
         components: rustfmt, clippy
 
-    # Cold Rust builds are minutes where `dotnet restore` is seconds. Also
-    # caches ~/.cargo/bin, so the wasm-bindgen-cli install below is paid once.
+    # Cold Rust builds take minutes. Also caches ~/.cargo/bin, so the
+    # wasm-bindgen-cli install below is paid once rather than every run.
     - name: Cache cargo
       uses: Swatinem/rust-cache@v2
       with:
@@ -81,6 +43,19 @@ jobs:
       run: cargo clippy --target wasm32-unknown-unknown -p trainer-web --all-targets -- -D warnings
 
     - name: Native tests
+      run: cargo test -p trainer-core
+
+    # The .NET job this replaced ran a TZ matrix, because the C# converter
+    # recomputed each timestamp's offset from TimeZoneInfo.Local on write and so
+    # produced machine-dependent bytes. `TrainerTime` keeps the offset it parsed
+    # instead, which should make the native tier timezone-independent — but that
+    # is a property worth proving rather than assuming, and re-running the
+    # already-built tests under a second zone costs seconds. Kolkata has a
+    # positive offset with a non-zero minute component, which is the shape that
+    # exposed the bug in the C#.
+    - name: Native tests (TZ=Asia/Kolkata)
+      env:
+        TZ: Asia/Kolkata
       run: cargo test -p trainer-core
 
     # wasm-bindgen-test-runner must match the wasm-bindgen crate version exactly
