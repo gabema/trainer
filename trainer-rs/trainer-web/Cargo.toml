@@ -19,6 +19,12 @@ wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
 
+# Already in the tree via dioxus; named here because the infinite-scroll hook
+# uses the channel directly. The IntersectionObserver callback runs outside
+# Dioxus's runtime, so it sends on a plain channel rather than touching signals.
+futures-channel = "0.3"
+futures-util = { version = "0.3", default-features = false }
+
 # Client-side rendering only. "web" and "router" are the whole surface: no
 # fullstack, server, ssr, desktop or mobile, since the app is a static bundle on
 # GitHub Pages with no server of any kind.
@@ -73,6 +79,15 @@ features = [
   "HtmlElement",
   "HtmlBaseElement",
   "Location",
+
+  # rust-ui: the decimal amount field reformats its own element, reproducing
+  # decimal-input.js without a controlled-input round trip
+  "HtmlInputElement",
+
+  # rust-ui: the export download, replacing window.downloadFile
+  "Blob",
+  "BlobPropertyBag",
+  "Url",
 ]
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]

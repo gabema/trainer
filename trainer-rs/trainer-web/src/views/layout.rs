@@ -47,14 +47,14 @@ pub fn TopNavBar() -> Element {
                     span { "Home" }
                 }
                 Link {
-                    to: Route::Activities {},
+                    to: Route::Activities { date: None, search: None },
                     class: "nav-tab",
                     active_class: "active",
                     ActivitiesIcon {}
                     span { "Activities" }
                 }
                 Link {
-                    to: Route::Calendar {},
+                    to: Route::Calendar { search: None },
                     class: "nav-tab",
                     active_class: "active",
                     CalendarIcon {}

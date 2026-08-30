@@ -34,16 +34,22 @@
 
 ## 5. Pages
 
-- [ ] 5.1 Port `Index` including recent activities and the goal summary
-- [ ] 5.2 Replace the Chart.js graph with declarative theme-aware SVG driven by CSS custom properties; delete `chart-helper.js`
-- [ ] 5.3 Port export and import, including the file picker and the download, without the `eval` and `alert` interop the Blazor version uses
-- [ ] 5.4 Port `ActivityEntry`, covering the `activity-duration`, `fractional-activity-amounts`, and `activity-location-capture` spec scenarios
-- [ ] 5.5 Port `DecimalAmountInput` using framework input binding; delete `decimal-input.js`
-- [ ] 5.6 Port `ActivityTypeEntry`, covering the `neutral-benefit` and `private-activity-types` spec scenarios
-- [ ] 5.7 Port `KnownLocationEntry`, covering the `known-locations` spec scenarios
-- [ ] 5.8 Port `ActivityCard` including the overlay actions, edit, finish, and delete
-- [ ] 5.9 Port `SearchFilter` and `Activities`, covering the `activity-filtering` spec scenarios including infinite scroll
-- [ ] 5.10 Port `Calendar` including the month view, search, and infinite scroll
+- [x] 5.1 Port `Index` including recent activities and the goal summary
+- [x] 5.2 Replace the Chart.js graph with declarative theme-aware SVG driven by CSS custom properties; delete `chart-helper.js`
+- [x] 5.3 Port export and import, including the file picker and the download, without the `eval` and `alert` interop the Blazor version uses
+- [x] 5.4 Port `ActivityEntry`, covering the `activity-duration`, `fractional-activity-amounts`, and `activity-location-capture` spec scenarios
+- [x] 5.5 Port `DecimalAmountInput` using framework input binding; delete `decimal-input.js`
+- [x] 5.6 Port `ActivityTypeEntry`, covering the `neutral-benefit` and `private-activity-types` spec scenarios
+- [x] 5.7 Port `KnownLocationEntry`, covering the `known-locations` spec scenarios
+- [x] 5.8 Port `ActivityCard` including the overlay actions, edit, finish, and delete
+- [x] 5.9 Port `SearchFilter` and `Activities`, covering the `activity-filtering` spec scenarios including infinite scroll
+- [x] 5.10 Port `Calendar` including the month view, search, and infinite scroll
+
+> The Rust bundle carries no `js/` directory, so 5.2 and 5.5 are met by not
+> porting `chart-helper.js` and `decimal-input.js`. The files themselves stay in
+> `Trainer/wwwroot/js/` until 8.3, because `Index.razor` still calls
+> `chartHelper.createGoalDurationChart` and `downloadFile` and the C# app has to
+> keep running until then.
 
 ## 6. Service worker cutover
 

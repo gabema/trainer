@@ -11,6 +11,8 @@ pub mod build_info;
 #[cfg(target_arch = "wasm32")]
 pub mod clock;
 #[cfg(target_arch = "wasm32")]
+pub mod download;
+#[cfg(target_arch = "wasm32")]
 pub mod geolocation;
 #[cfg(target_arch = "wasm32")]
 pub mod idb;

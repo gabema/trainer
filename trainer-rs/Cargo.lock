@@ -3064,6 +3064,8 @@ dependencies = [
  "async-trait",
  "chrono",
  "dioxus",
+ "futures-channel",
+ "futures-util",
  "js-sys",
  "serde",
  "serde_json",

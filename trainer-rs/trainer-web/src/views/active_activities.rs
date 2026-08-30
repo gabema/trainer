@@ -10,7 +10,6 @@ use crate::clock::now_local;
 use crate::state::{ActiveActivities as State, active_activities, storage};
 use dioxus::prelude::*;
 use std::collections::BTreeMap;
-use trainer_core::helpers::display::format_duration;
 use trainer_core::helpers::when::format_elapsed;
 use trainer_core::services::activity::ActivityService;
 use trainer_core::services::activity_type::ActivityTypeService;
@@ -45,7 +44,13 @@ async fn resolve_type_names(ids: Vec<i32>) -> BTreeMap<i32, String> {
 
 /// Writes the elapsed duration onto the activity, saves it, and clears the
 /// timer — the whole of `FinishActivityAsync`.
-async fn finish_activity(mut state: State, activity_id: i32) {
+///
+/// Shared with the activity card, which carried a near-identical copy in
+/// `ActivityCard.HandleFinish`. The one difference was that the card wrote onto
+/// the `Activity` it was already holding rather than re-reading it, which could
+/// save a stale copy over an edit made elsewhere; re-reading is the safe half
+/// of the pair.
+pub(crate) async fn finish_activity(mut state: State, activity_id: i32) {
     let Some(start) = state.entries().get(&activity_id).copied() else {
         return;
     };
@@ -126,10 +131,4 @@ pub fn ActiveActivities() -> Element {
             }
         }
     }
-}
-
-/// Kept for the activity card in section 5, which shows the same compact
-/// duration for a finished activity.
-pub fn compact_duration(seconds: Option<i32>) -> Option<String> {
-    format_duration(seconds)
 }

@@ -14,6 +14,15 @@
     --code-color: #c02d76;
     --error-ui-bg: lightyellow;
     --text-muted: #6c757d;
+
+    /* Goal chart. Replaces chart-helper.js's getTextColor / getGridColor and
+       its hard-coded rgba bar colors, so the theme flip is pure cascade. */
+    --chart-positive: rgba(40, 167, 69, 0.8);
+    --chart-positive-border: rgb(40, 167, 69);
+    --chart-negative: rgba(220, 53, 69, 0.8);
+    --chart-negative-border: rgb(220, 53, 69);
+    --chart-axis: #212529;
+    --chart-grid: rgba(0, 0, 0, 0.1);
 }
 
 [data-bs-theme="dark"] {
@@ -31,6 +40,13 @@
     --code-color: #e685b5;
     --error-ui-bg: #664d03;
     --text-muted: #adb5bd;
+
+    --chart-positive: rgba(40, 167, 69, 0.8);
+    --chart-positive-border: rgb(40, 167, 69);
+    --chart-negative: rgba(220, 53, 69, 0.8);
+    --chart-negative-border: rgb(220, 53, 69);
+    --chart-axis: #fff;
+    --chart-grid: rgba(255, 255, 255, 0.1);
 }
 
 /* Dark mode background and text colors */
@@ -834,4 +850,14 @@ code {
         width: 24px;
         height: 24px;
     }
+}
+
+/* The chart scales to the card width but keeps a fixed height, as the canvas
+   did. Chart.js needed explicit pixel dimensions written onto the element to
+   stop a resize feedback loop; a viewBox has no such problem. */
+.goal-chart {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: 400px;
 }
