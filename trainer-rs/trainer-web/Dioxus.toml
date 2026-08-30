@@ -1,0 +1,25 @@
+[application]
+name = "trainer"
+# Static files copied verbatim into the bundle: the manifest, service worker,
+# icons and stylesheets. Carried over from Trainer/wwwroot minus the JavaScript
+# shims this change deletes.
+public_dir = "public"
+
+[web.app]
+title = "Trainer"
+# Served from https://<user>.github.io/trainer/, so every generated URL needs
+# this prefix. Replaces the three `sed` steps the Blazor deploy used to rewrite
+# <base href> in index.html and 404.html.
+base_path = "trainer"
+
+[web.watcher]
+# Deep links such as /activity/5 must render the shell rather than 404, matching
+# what the 404.html copy does on GitHub Pages.
+index_on_404 = true
+
+# wasm-opt is left at its default rather than tuned. Bundle size is explicitly
+# not a goal of this rewrite, and the size-optimising level ("s") triggers a
+# binaryen SIGABRT on this toolchain:
+#   "compile unit size was incorrect (this may be an unsupported version of DWARF)"
+# dx reports the build as successful regardless, so a tuned setting here would
+# mean shipping a step that reliably errors while appearing to pass.

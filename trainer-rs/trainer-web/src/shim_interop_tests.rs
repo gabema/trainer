@@ -1,10 +1,15 @@
-//! Task 9.3 — data written by Rust must be readable by the JavaScript shim that
-//! ships today, and vice versa.
+//! Data written by Rust must be readable by the JavaScript shim the previous
+//! implementation shipped, and vice versa.
 //!
-//! Rather than assert about the shim's behavior, this loads
-//! `Trainer/wwwroot/js/indexeddb-storage.js` verbatim into the test page and
-//! drives it. Its `DB_NAME` constant is rewritten first so a test run cannot
-//! touch a real `Trainer` database.
+//! Rather than assert about the shim's behavior, this loads it verbatim into
+//! the test page and drives it. Its `DB_NAME` constant is rewritten first so a
+//! test run cannot touch a real `Trainer` database.
+//!
+//! The shim itself is kept in `tests/fixtures/` now that `Trainer/` is deleted.
+//! It is golden data on the same footing as `csharp-export.json`: this is the
+//! program that wrote every existing user's IndexedDB, so it defines the format
+//! the port has to read, and a copy of it is the only way to keep checking that
+//! against the real thing rather than against a description of it.
 
 use crate::idb::IdbStorage;
 use js_sys::{Function, Object, Promise, Reflect};
@@ -16,7 +21,7 @@ use wasm_bindgen_test::{wasm_bindgen_test, wasm_bindgen_test_configure};
 wasm_bindgen_test_configure!(run_in_browser);
 
 /// The shipping shim, embedded at compile time so the test cannot drift from it.
-const SHIM_SOURCE: &str = include_str!("../../../Trainer/wwwroot/js/indexeddb-storage.js");
+const SHIM_SOURCE: &str = include_str!("../../tests/fixtures/indexeddb-storage.js");
 
 /// Loads the shim against an isolated database and returns its object.
 fn load_shim(db_name: &str) -> Object {

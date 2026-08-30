@@ -6,13 +6,38 @@
 //! crate boundary means the fast native tier in `trainer-core` cannot quietly
 //! acquire browser dependencies.
 
+pub mod build_info;
+
+#[cfg(target_arch = "wasm32")]
+pub mod clock;
+#[cfg(target_arch = "wasm32")]
+pub mod download;
+#[cfg(target_arch = "wasm32")]
+pub mod geolocation;
 #[cfg(target_arch = "wasm32")]
 pub mod idb;
+#[cfg(target_arch = "wasm32")]
+pub mod notifications;
+#[cfg(target_arch = "wasm32")]
+pub mod routes;
+#[cfg(target_arch = "wasm32")]
+pub mod scroll;
+#[cfg(target_arch = "wasm32")]
+pub mod state;
+#[cfg(target_arch = "wasm32")]
+pub mod views;
+
 #[cfg(target_arch = "wasm32")]
 pub mod local;
 
 #[cfg(all(test, target_arch = "wasm32"))]
+mod browser_api_tests;
+
+#[cfg(all(test, target_arch = "wasm32"))]
 mod idb_tests;
+
+#[cfg(all(test, target_arch = "wasm32"))]
+mod local_tests;
 
 #[cfg(all(test, target_arch = "wasm32"))]
 mod shim_interop_tests;

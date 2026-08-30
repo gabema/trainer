@@ -1,28 +1,51 @@
 schema: spec-driven
 
 context: |
-  Tech stack: C# / .NET 10, Blazor WebAssembly (PWA, fully offline)
-  UI: Blazor component model (.razor files), Bootstrap 5, Chart.js 4
-  Storage: IndexedDB via JS interop (IndexedDbStorageService); JSON serialized with camelCase + custom DateTimeConverter
-  Testing: xUnit + Moq; test project is Trainer.Tests; test class naming is {ClassUnderTest}Tests; tests mirror source folder structure
+  Tech stack: Rust, compiled to WebAssembly (PWA, fully offline)
+  UI: Dioxus 0.7 (web + router features, client-side rendering only), Bootstrap 5
+  Storage: IndexedDB through web-sys; JSON serialized to match the previous
+    C# implementation byte for byte, including System.Text.Json's escaping
+  Testing: two tiers. `cargo test -p trainer-core` runs the domain natively;
+    `cargo test --target wasm32-unknown-unknown -p trainer-web` runs the browser
+    layer under wasm-bindgen-test in headless Chrome. Tests live in `mod tests`
+    beside the code they cover.
 
   Domain: personal health/activity tracker. Users define ActivityTypes.
   Activities are logged against a type with an amount, optional duration, and notes.
   Key views: Home (recent activities + goal chart), Activities list (search + date filter + infinite scroll), Calendar (month view + search).
 
+  This is a port of a .NET/Blazor app that shipped to real users, so stored data
+  and export files must stay readable. `trainer-rs/tests/fixtures/` holds golden
+  files captured from the C# implementation; the port is checked against them
+  rather than against a re-reading of the old source. They are de-identified
+  from a real profile and no test may modify one.
+
   Project structure:
-    Trainer/Models/       — C# records (Activity, ActivityType, NetBenefit, DurationOption)
-    Trainer/Services/     — interfaces + implementations; service classes named {Entity}Service
-    Trainer/Helpers/      — static utility classes (ActivitySearchFilter, WeekHelper, DateTimeHelper)
-    Trainer/Pages/        — Blazor pages (one file per route)
-    Trainer/Components/   — reusable Blazor components
-    Trainer/wwwroot/js/   — JS helpers for IndexedDB, Chart.js, infinite scroll, service worker
+    trainer-rs/                     — Cargo workspace
+    trainer-core/src/models.rs      — domain types; two serde formats via the Fmt wrapper
+    trainer-core/src/datetime.rs    — TrainerTime, reproducing the C# DateTimeConverter
+    trainer-core/src/escaping.rs    — System.Text.Json string escaping
+    trainer-core/src/week.rs        — .NET GetWeekOfYearFullDays, NOT ISO 8601
+    trainer-core/src/services/      — one module per service
+    trainer-core/src/helpers/       — amount, display, duration, search, strings, when
+    trainer-core/src/storage/       — Storage trait, week bucketing, legacy migration
+    trainer-web/src/                — browser bindings: idb, local, clock, geolocation,
+                                      notifications, scroll, download
+    trainer-web/src/views/          — Dioxus components, one per page or component
+    trainer-web/public/             — static assets and the service worker
+
+  The two crates split on the native/browser boundary deliberately: trainer-core
+  must stay free of browser dependencies so its tests run natively and fast, and
+  the crate boundary makes a violation a compile error rather than a review note.
 
   Conventions:
-    - Interfaces prefixed with I (IActivityService)
-    - Private fields _camelCase
-    - Models are records; services are classes registered in Program.cs
-    - Scoped CSS via .razor.css files alongside components
+    - Rust 2024 edition; `cargo fmt` and `cargo clippy -- -D warnings` are clean
+      on both the host and wasm32 targets
+    - `#[async_trait(?Send)]` throughout: WASM futures are not Send
+    - Comments explain why, especially where behaviour looks wrong but reproduces
+      the C# deliberately; cite the C# source file when porting
+    - No JS shims. Browser APIs are reached through web-sys. The only JavaScript
+      left is the service worker and a pre-paint theme script in index.html
     - No server; all logic runs in the browser
 
   Commit style: "Feature/{issue} description" | "Fix description" | "Issue #{n} description" | "Shipping {version}"

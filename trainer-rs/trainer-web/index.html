@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{app_title}</title>
+
+    <!--
+      Dioxus applies base_path to the assets IT injects, but does not emit a
+      <base> tag, so relative URLs below would resolve against the current route
+      and break on any deep link such as /trainer/activity/5.
+      `dx serve` nests the dev server under base_path too, so one static value is
+      correct both locally and on GitHub Pages, and no deploy-time rewrite is
+      needed. The service worker registration below reads this element.
+    -->
+    <base href="/trainer/" />
+
+    <!--
+      Theme must be applied before first paint, and WASM loads asynchronously
+      after it, so this cannot move into Rust without flashing the wrong theme
+      on every cold start. It is the only inline script that survives.
+
+      The Blazor version was 74 lines. The rest was a window.themeManager API no
+      C# code ever called, a "themechange" CustomEvent nothing listened for, and
+      a chartHelper.updateAllCharts() call that dies with Chart.js.
+    -->
+    <script>
+        (function () {
+            var mq = window.matchMedia('(prefers-color-scheme: dark)');
+            var apply = function (dark) {
+                document.documentElement.setAttribute('data-bs-theme', dark ? 'dark' : 'light');
+            };
+            apply(mq.matches);
+            mq.addEventListener('change', function (e) { apply(e.matches); });
+        })();
+    </script>
+
+    <link rel="stylesheet" href="css/bootstrap/bootstrap.min.css" />
+    <link rel="stylesheet" href="css/app.css" />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#007bff" />
+</head>
+
+<body>
+    <div id="main"></div>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function () {
+                var base = document.querySelector('base');
+                var href = (base && base.getAttribute('href')) || '/';
+                var path = href + (href.endsWith('/') ? '' : '/') + 'service-worker.js';
+                navigator.serviceWorker.register(path)
+                    .catch(function (err) { console.log('Service Worker registration failed:', err); });
+            });
+        }
+    </script>
+</body>
+
+</html>

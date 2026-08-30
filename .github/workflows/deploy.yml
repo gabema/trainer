@@ -13,47 +13,102 @@ concurrency:
   group: "pages"
   cancel-in-progress: false
 
+# Where `dx build --release` leaves the bundle. Repo-relative, because the
+# upload action ignores `defaults.run.working-directory`.
+env:
+  BUNDLE: trainer-rs/target/dx/trainer-web/release/web/public
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
     - uses: actions/checkout@v4
-    
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
+
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
       with:
-        dotnet-version: '10.0.x'
-    
-    - name: Restore dependencies
-      run: dotnet restore
-    
+        targets: wasm32-unknown-unknown
+
+    - name: Cache cargo
+      uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: trainer-rs
+
+    # The CLI ships in lockstep with the framework, so the lockfile is the
+    # single source of truth for both. Pinned rather than latest: `dx` decides
+    # the bundle layout the service worker and the upload path below depend on.
+    - name: Install the Dioxus CLI matching Cargo.lock
+      working-directory: trainer-rs
+      run: |
+        version=$(grep -A1 '^name = "dioxus"$' Cargo.lock | grep '^version' | head -1 | cut -d'"' -f2)
+        if [ -z "$version" ]; then
+          echo "::error::Could not read the dioxus version from Cargo.lock"
+          exit 1
+        fi
+        echo "Pinning dioxus-cli to $version"
+        if [ "$(dx --version 2>/dev/null | awk '{print $2}')" = "$version" ]; then
+          echo "Already installed and matching; skipping."
+        else
+          cargo install dioxus-cli --version "$version" --locked
+        fi
+
+    # `dx build`, never `cargo build`. In release the router reads its base path
+    # from DIOXUS_ASSET_ROOT, a compile-time variable only the CLI sets from
+    # Dioxus.toml, so a cargo-built release would resolve every route against
+    # the domain root and 404 on GitHub Pages.
     - name: Build
+      working-directory: trainer-rs/trainer-web
+      env:
+        TAG: ${{ github.event.release.tag_name }}
       run: |
-        VERSION="${{ github.event.release.tag_name }}"
-        dotnet build --configuration Release --no-restore -p:InformationalVersion=${VERSION#v}
-    
-    - name: Publish
-      run: dotnet publish Trainer/Trainer.csproj --configuration Release --output ./publish --no-build -p:BasePath=/trainer/
-    
-    - name: Create 404.html from index.html for GitHub Pages
-      run: cp ./publish/wwwroot/index.html ./publish/wwwroot/404.html
-    
-    - name: Update base href for GitHub Pages
+        TRAINER_VERSION="${TAG#v}"
+        if [ -z "$TRAINER_VERSION" ]; then
+          echo "::error::The release tag is empty, so the version footer would render blank"
+          exit 1
+        fi
+        export TRAINER_VERSION
+        echo "Building $TRAINER_VERSION"
+        # `dx` does not prune the output directory, and rust-cache may restore a
+        # previous run's, so an old build's content-hashed assets would ship
+        # alongside the new ones.
+        rm -rf ../target/dx/trainer-web/release
+        dx build --platform web --release
+
+    # GitHub Pages has no file at a client-side route, so it serves 404.html.
+    # The service worker handles this too, but only once installed — a first
+    # visit to a deep link has no worker yet.
+    - name: Create 404.html for client-side routes
+      run: cp "$BUNDLE/index.html" "$BUNDLE/404.html"
+
+    # The base href and the manifest's start_url are static in the sources and
+    # correct in dev as well, so the three `sed` rewrites this step used to run
+    # are gone. Asserted rather than assumed: getting either wrong breaks every
+    # deep link, and it would only show up after a release.
+    #
+    # Matched loosely on whitespace because `dx` minifies and re-serializes what
+    # it copies — the bundled manifest is one line with the keys reordered, so a
+    # pattern written against the source file would fail every release.
+    - name: Check the bundle is rooted at /trainer/
       run: |
-        sed -i 's|<base href="/" />|<base href="/trainer/" />|g' ./publish/wwwroot/index.html
-        sed -i 's|<base href="/" />|<base href="/trainer/" />|g' ./publish/wwwroot/404.html
-        sed -i 's|"start_url": "/"|"start_url": "/trainer/"|g' ./publish/wwwroot/manifest.json
-    
+        fail=0
+        grep -qE '<base href="/trainer/"' "$BUNDLE/index.html" || { echo "::error::index.html is missing the /trainer/ base href"; fail=1; }
+        grep -qE '"start_url": ?"/trainer/"' "$BUNDLE/manifest.json" || { echo "::error::manifest start_url is not /trainer/"; fail=1; }
+        grep -qE 'src="/trainer/assets/' "$BUNDLE/index.html" || { echo "::error::the wasm entry point is not under /trainer/assets/ — was this built with cargo instead of dx?"; fail=1; }
+        # The worker is minified on the way into the bundle, so this also
+        # catches a minifier that mangled it into something unrecognisable.
+        grep -qE 'CACHE_NAME ?= ?"trainer-v[0-9]+"' "$BUNDLE/service-worker.js" || { echo "::error::the bundled service worker has no CACHE_NAME"; fail=1; }
+        exit $fail
+
     - name: Setup Pages
       uses: actions/configure-pages@v4
       with:
         enablement: true
-    
+
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3
       with:
-        path: './publish/wwwroot'
+        path: ${{ env.BUNDLE }}
 
   deploy:
     environment:
@@ -65,4 +120,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-
