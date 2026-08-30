@@ -198,3 +198,18 @@ async fn notifications_are_a_silent_no_op_without_permission() {
     notifications::show(1, "Running", "1:30").await;
     notifications::close(1).await;
 }
+
+/// The `data` payload is what makes a notification click navigate.
+///
+/// The service worker reads `data.activityId`; nothing ever set it, so the
+/// handler's navigate branch was unreachable and a click only focused the
+/// window. Asserting the shape here is the only way to catch it silently going
+/// missing again — a notification that shows correctly gives no sign that its
+/// click target is gone.
+#[wasm_bindgen_test]
+fn the_notification_payload_carries_the_activity_id() {
+    let data = notifications::activity_data(42);
+    let read = js_sys::Reflect::get(&data, &wasm_bindgen::JsValue::from_str("activityId"))
+        .expect("data is an object");
+    assert_eq!(read.as_f64(), Some(42.0));
+}

@@ -96,6 +96,21 @@ async fn registration() -> Option<ServiceWorkerRegistration> {
         .ok()
 }
 
+/// The `data` payload the service worker reads on click.
+///
+/// A plain object rather than a bare number, matching the shape the worker
+/// already expected: `{ activityId: 42 }`.
+pub(crate) fn activity_data(activity_id: i32) -> JsValue {
+    let data = js_sys::Object::new();
+    // Fails only if `data` were not an object, which it is.
+    let _ = js_sys::Reflect::set(
+        &data,
+        &JsValue::from_str("activityId"),
+        &JsValue::from(activity_id),
+    );
+    data.into()
+}
+
 /// Shows or replaces the notification for an active activity.
 ///
 /// The shim's `startActiveNotification` and `updateActiveNotification` had
@@ -112,6 +127,12 @@ pub async fn show(activity_id: i32, name: &str, elapsed: &str) {
     let icon = icon_url();
     let options = NotificationOptions::new();
     options.set_tag(&tag_for(activity_id));
+    // The service worker's `notificationclick` handler reads `data.activityId`
+    // to navigate to the activity. Neither the shim nor the first cut of this
+    // port ever set it, so that branch was dead and a click only focused the
+    // window. `pwa-update-migration` requires the navigation, so the id is
+    // carried here.
+    options.set_data(&activity_data(activity_id));
     options.set_body(&format!("Active — {elapsed}"));
     options.set_icon(&icon);
     options.set_badge(&icon);

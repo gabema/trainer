@@ -53,15 +53,42 @@
 
 ## 6. Service worker cutover
 
-- [ ] 6.1 Bump `CACHE_NAME` and remove the hardcoded `_framework` entries from `urlsToCache`
-- [ ] 6.2 Reduce install-time precaching to stable shell paths only, tolerating individual fetch failures without failing installation
-- [ ] 6.3 Add runtime cache-on-fetch for content-hashed assets, keyed to the current cache version
-- [ ] 6.4 Add `self.skipWaiting()` and `clients.claim()` for this release, with a comment explaining they are a one-time cutover measure to be removed
-- [ ] 6.5 Confirm activation deletes all non-current caches and does not touch IndexedDB or localStorage
-- [ ] 6.6 Verify `notificationclick` still focuses or opens the correct activity route
+- [x] 6.1 Bump `CACHE_NAME` and remove the hardcoded `_framework` entries from `urlsToCache`
+- [x] 6.2 Reduce install-time precaching to stable shell paths only, tolerating individual fetch failures without failing installation
+- [x] 6.3 Add runtime cache-on-fetch for content-hashed assets, keyed to the current cache version
+- [x] 6.4 Add `self.skipWaiting()` and `clients.claim()` for this release, with a comment explaining they are a one-time cutover measure to be removed
+- [x] 6.5 Confirm activation deletes all non-current caches and does not touch IndexedDB or localStorage
+- [x] 6.6 Verify `notificationclick` still focuses or opens the correct activity route
 - [ ] 6.7 Verify against a profile with the previous PWA genuinely installed: old worker registered, old cache populated, real history present
 - [ ] 6.8 Verify offline function after one online visit, including the chart
 - [ ] 6.9 Verify deep links resolve both online and offline
+
+> **6.7-6.9 are blocked on a browser, not on code.** Service worker
+> registration fails for any script in the sandboxed browser available to this
+> session (`An unknown error occurred when fetching the script`, reproduced with
+> a one-line stub), and no Chrome instance is connected, so no live worker can
+> be installed, activated, or taken offline here.
+>
+> What was verified instead, by loading the worker source and driving its
+> `install` / `activate` / `fetch` handlers against real Cache Storage and real
+> IndexedDB: install tolerates unreachable precache URLs; activate deletes
+> `trainer-v2`, keeps `trainer-v3`, and leaves IndexedDB and localStorage
+> untouched; `skipWaiting` and `clients.claim` are called; an offline deep link
+> and a hosting 404 both fall back to the cached shell; a hashed asset is served
+> from cache offline and is never re-fetched when present; a stable path serves
+> stale and refreshes behind it; non-GET and cross-origin requests are passed
+> through. Separately, the release build was served and every same-origin URL it
+> requests was confirmed to fall under precache or the hashed-asset rule, with
+> no cross-origin resources at all.
+>
+> A contrast run pins down why this matters: with `_framework/` removed — what
+> the Rust deploy actually does — the previous worker caches **zero** entries,
+> because `addAll` rejects as a batch and the `catch` swallows it. The app keeps
+> working online, so the loss of offline mode leaves no trace.
+>
+> Still unproven, and only provable on a real deployment: that an installed
+> Blazor PWA takes the new worker on next launch, that the app boots with the
+> network genuinely off, and that a notification click navigates.
 
 ## 7. CI and deployment
 
