@@ -20,7 +20,7 @@ use trainer_core::datetime::TrainerTime;
 use trainer_core::helpers::duration;
 use trainer_core::helpers::strings::null_if_empty_or_whitespace;
 use trainer_core::helpers::when::format_elapsed;
-use trainer_core::models::{Activity, ActivityType, KnownLocation};
+use trainer_core::models::{Activity, ActivityType, KnownLocation, duplicate_of};
 use trainer_core::services::active_time::ActiveTime;
 use trainer_core::services::activity::ActivityService;
 use trainer_core::services::activity_type::ActivityTypeService;
@@ -138,13 +138,7 @@ fn ActivityForm(id: Option<i32>, duplicate_from: Option<i32>) -> Element {
         } else if let Some(source_id) = duplicate_from
             && let Ok(Some(source)) = activities.by_id(source_id).await
         {
-            // A copy with a fresh id and the current time; everything else
-            // carries over.
-            activity.set(Activity {
-                id: 0,
-                when: now_when(),
-                ..source
-            });
+            activity.set(duplicate_of(&source, now_when()));
         }
 
         selected_location_id.set(activity().known_location_id);

@@ -183,6 +183,25 @@ impl Serialize for Fmt<'_, Activity> {
     }
 }
 
+/// A copy of an activity ready to be added as a new one.
+///
+/// Ports the duplicate path in `ActivityEntry.razor`, which built the copy by
+/// listing every field by hand — so a field added to `Activity` and forgotten
+/// there would have been silently dropped from every duplicate. `..source`
+/// makes that a compile-time guarantee instead, which is why the two C# tests
+/// guarding `KnownLocationId` specifically have no counterpart here.
+///
+/// What still needs asserting is what does *not* carry over: the id resets so
+/// the activity is added rather than overwriting its source, and the timestamp
+/// becomes now rather than the original's.
+pub fn duplicate_of(source: &Activity, when: TrainerTime) -> Activity {
+    Activity {
+        id: 0,
+        when,
+        ..source.clone()
+    }
+}
+
 /// `Trainer/Models/ActivityType.cs`.
 ///
 /// `decimal_places` scales stored amounts: an amount of 125 with
@@ -492,5 +511,49 @@ mod tests {
         assert!(parsed.activity_types.iter().any(|t| t.is_private));
         assert!(parsed.activity_types.iter().any(|t| !t.is_private));
         assert!(parsed.activity_types.iter().any(|t| t.decimal_places == 2));
+    }
+
+    /// Ports `DuplicateFrom_WithKnownLocationId_CopiesId` and
+    /// `DuplicateFrom_WithNullKnownLocationId_CopiesNull`, plus the reset the
+    /// C# tests took for granted.
+    #[test]
+    fn a_duplicate_keeps_every_field_but_the_id_and_the_timestamp() {
+        use chrono::NaiveDate;
+        let original = NaiveDate::from_ymd_opt(2026, 1, 5)
+            .expect("valid date")
+            .and_hms_opt(9, 30, 0)
+            .expect("valid time");
+        let copied_at = NaiveDate::from_ymd_opt(2026, 3, 1)
+            .expect("valid date")
+            .and_hms_opt(17, 0, 0)
+            .expect("valid time");
+
+        for known_location_id in [Some(-1_234_567), None] {
+            let source = Activity {
+                id: 42,
+                activity_type_id: 7,
+                when: TrainerTime::Utc(original),
+                amount: 125,
+                notes: Some("From knees".to_owned()),
+                duration_seconds: Some(330),
+                known_location_id,
+            };
+
+            let copy = duplicate_of(&source, TrainerTime::Utc(copied_at));
+
+            assert_eq!(
+                copy.id, 0,
+                "a duplicate must be added, not overwrite its source"
+            );
+            assert_eq!(copy.when.naive(), copied_at, "the copy is stamped now");
+            assert_eq!(copy.activity_type_id, source.activity_type_id);
+            assert_eq!(copy.amount, source.amount);
+            assert_eq!(copy.notes, source.notes);
+            assert_eq!(copy.duration_seconds, source.duration_seconds);
+            assert_eq!(
+                copy.known_location_id, known_location_id,
+                "the location carries over, including when it is absent"
+            );
+        }
     }
 }

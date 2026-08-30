@@ -64,3 +64,14 @@ by differing from the real value in character class or numeric form: plain-ASCII
 notes hid all escaping, then missing escape-triggering characters, then Python's
 float `repr` writing `10.0` where .NET writes `10`. Anyone regenerating these
 should assume that failure mode rather than trust the output.
+
+## `indexeddb-storage.js`
+
+The JavaScript IndexedDB shim from the C# implementation, verbatim. Not test
+data but a test *subject*: `trainer-web/src/shim_interop_tests.rs` loads it into
+the browser and drives it against the Rust storage layer, so the two are checked
+for agreement by running both rather than by comparing one to a description.
+
+It is kept here because it is the program that wrote every existing user's
+database. `Trainer/` was deleted once the Rust build shipped; this file outlives
+it for the same reason `csharp-export.json` does.

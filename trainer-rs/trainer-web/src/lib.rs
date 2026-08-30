@@ -37,6 +37,9 @@ mod browser_api_tests;
 mod idb_tests;
 
 #[cfg(all(test, target_arch = "wasm32"))]
+mod local_tests;
+
+#[cfg(all(test, target_arch = "wasm32"))]
 mod shim_interop_tests;
 
 #[cfg(all(test, target_arch = "wasm32"))]

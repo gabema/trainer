@@ -120,11 +120,75 @@
 
 ## 8. Retire the C# project
 
-- [ ] 8.1 Walk all nine capability specs plus `storage-data-compatibility` and confirm every scenario has a passing Rust test
-- [ ] 8.2 Confirm no ported test from `Trainer.Tests` was dropped rather than translated
-- [ ] 8.3 Delete `Trainer/`, `Trainer.Tests/`, and `Trainer.sln`
-- [ ] 8.4 Remove `.NET`-specific entries from `.gitignore` and `.editorconfig` where no longer applicable
-- [ ] 8.5 Rewrite the tech-stack `context` block in `openspec/config.yaml`: stack, UI, storage, testing, project structure, and conventions all describe C# and Blazor
-- [ ] 8.6 Update `readme.md`, which describes .NET 10, Blazor, and the coverage claim throughout
-- [ ] 8.7 Update `CLAUDE.md` and `AGENTS.md` if they reference the C# layout
-- [ ] 8.8 Re-run GitNexus indexing so code intelligence reflects the Rust tree
+- [x] 8.1 Walk all nine capability specs plus `storage-data-compatibility` and confirm every scenario has a passing Rust test
+- [x] 8.2 Confirm no ported test from `Trainer.Tests` was dropped rather than translated
+
+> **8.2 found two real gaps, both now closed.** All 149 C# test methods were
+> extracted and matched against the Rust tree. 66 are cited by name in a `Ports
+> \`Name\`` doc comment; the other 83 were checked by behaviour, since the
+> citation convention was applied unevenly. Every one of them has a counterpart
+> except:
+>
+> - `LocalStorageServiceTests` (5 tests). `local.rs` had **no tests at all** —
+>   the IndexedDB binding got eleven browser tests and the localStorage binding
+>   got none, despite being where the active-activity set lives. Added seven
+>   browser tests, including one that drives `ActiveActivityService` over the
+>   real store across a simulated reload.
+> - `DuplicateFrom_WithKnownLocationId_CopiesId` / `_CopiesNull`. The duplicate
+>   path was inline in a component and untested. Extracted as
+>   `models::duplicate_of` with a test. The two C# tests exist because the C#
+>   listed every field by hand; `..source` makes that a compile-time guarantee,
+>   so what the Rust test pins is what does *not* carry over — the id reset and
+>   the new timestamp.
+>
+> Three C# tests are inapplicable by design rather than dropped:
+> `FormatWhenDateTime_NoNowParameter_UsesCurrentTime` (the Rust signature always
+> takes `now`, because the clock is injected),
+> `ImportDataAsync_PreservesWallClockEvenWhenTheOffsetIsRecomputed` (Rust
+> preserves the parsed offset instead of recomputing it — a documented
+> divergence covered in `datetime.rs`), and the `RustInteropTests` cases, which
+> tested the C# reading Rust output and have no meaning once no C# runs.
+>
+> **8.1.** The 164 scenarios across the ten specs split in two. Domain, storage
+> and serialization scenarios have direct automated coverage — `storage-data-
+> compatibility` in particular is covered scenario for scenario by `compat.rs`,
+> `escaping.rs`, `datetime.rs`, `week.rs`, `migration.rs` and the golden
+> fixtures. Rendering and interaction scenarios are satisfied by the
+> implementation plus the manual verification recorded in sections 3-7, exactly
+> as they were under the C#, whose suite was helpers and services only.
+>
+> Two scenarios lose their automated check with `Trainer.Tests`: "Data written
+> by Rust is readable by the previous implementation" and "Rust export imports
+> into C#". Both describe a direction that stops existing at this commit. The
+> reverse direction — the one that still matters, since real user data was
+> written by the C# — stays covered byte-for-byte by `compat.rs` against the
+> committed `csharp-export.json`.
+- [x] 8.3 Delete `Trainer/`, `Trainer.Tests/`, and `Trainer.sln`
+- [x] 8.4 Remove `.NET`-specific entries from `.gitignore` and `.editorconfig` where no longer applicable
+- [x] 8.5 Rewrite the tech-stack `context` block in `openspec/config.yaml`: stack, UI, storage, testing, project structure, and conventions all describe C# and Blazor
+- [x] 8.6 Update `readme.md`, which describes .NET 10, Blazor, and the coverage claim throughout
+- [x] 8.7 Update `CLAUDE.md` and `AGENTS.md` if they reference the C# layout
+- [x] 8.8 Re-run GitNexus indexing so code intelligence reflects the Rust tree
+
+> **8.3 broke the browser tier, which is how the deletion earned its keep.**
+> `shim_interop_tests.rs` embeds `Trainer/wwwroot/js/indexeddb-storage.js` with
+> `include_str!` and drives the real shim against the Rust storage layer, so
+> deleting the C# tree stopped `trainer-web` compiling. The shim is now kept in
+> `tests/fixtures/`: it is not C# source being retired but the program that
+> wrote every existing user's IndexedDB, which makes it golden data on the same
+> footing as `csharp-export.json`. Running it is the only way to check the
+> format against the real thing rather than against a description of it.
+>
+> 8.4 was `.gitignore` only — 493 lines of `dotnet new gitignore` down to 54.
+> `.editorconfig` had nothing .NET-specific in its six lines.
+>
+> 8.7 needed no manual edit: both files are generated by GitNexus and were
+> rewritten by 8.8.
+>
+> 8.8 re-indexed 84 files out and 71 in, taking the graph from 868 nodes to
+> 1,567. The index had been pinned to a June commit that predated the entire
+> Rust tree, so every `impact` query against Rust returned "not found" and
+> `detect_changes` reported "no changes" for the whole port. Both work now:
+> `impact chart_series` resolves, and `detect_changes` correctly picks out the
+> three `ActivityForm` flows touched by routing the duplicate path through
+> `models::duplicate_of`.
